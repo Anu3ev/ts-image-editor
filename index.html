@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Простой редактор на Fabric.js</title>
+<script type="module" src="src/main.js"></script>
+<style>
+  #canvas-container {
+    border: 1px solid #ccc;
+    display: inline-block;
+    margin-top: 10px;
+    position: relative;
+  }
+
+  canvas {
+    border: 1px solid #000;
+  }
+
+  .controls {
+    margin-bottom: 10px;
+  }
+</style>
+</head>
+<body>
+<div class="controls">
+  <input type="file" id="file-input" multiple accept="image/*" style="display:none;" />
+  <button id="choose-image">Выбрать изображения</button>
+  <button id="save-canvas">Сохранить</button>
+</div>
+
+<div id="canvas-container">
+  <canvas id="editor-canvas" width="800" height="600"></canvas>
+</div>
+
+
+</body>
+</html>
