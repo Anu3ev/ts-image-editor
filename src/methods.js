@@ -3,7 +3,6 @@ import {
   MIN_ZOOM_RATIO,
   MAX_ZOOM_RATIO,
   DEFAULT_ZOOM_RATIO,
-  DEFAULT_SCALE,
   ROTATE_RATIO,
   CANVAS_MIN_WIDTH,
   CANVAS_MIN_HEIGHT,
@@ -11,7 +10,7 @@ import {
   CANVAS_MAX_HEIGHT
 } from './constants'
 
-export default ({ canvas, fabric }) => ({
+export default ({ canvas, fabric, options: editorOptions }) => ({
   /**
    * Устанавливаем внутреннюю ширину канваса (для экспорта)
    * @param {String} width
@@ -97,7 +96,7 @@ export default ({ canvas, fabric }) => ({
   /**
    * Устанавливаем ширину CSS ширину канваса для отображения
    * @param {String} width
-   * @returns
+   * @fires canvas:display-width-changed
    */
   setDisplayWidth(width) {
     if (!width || typeof width !== 'string') return
@@ -105,12 +104,14 @@ export default ({ canvas, fabric }) => ({
     canvas.lowerCanvasEl.style.width = width
     canvas.upperCanvasEl.style.width = width
     canvas.wrapperEl.style.width = width
+
+    canvas.fire('canvas:display-width-changed', { width })
   },
 
   /**
    * Устанавливаем высоту CSS высоту канваса для отображения
    * @param {String} height
-   * @returns
+   * @fires canvas:display-height-changed
    */
   setDisplayHeight(height) {
     if (!height || typeof height !== 'string') return
@@ -118,6 +119,8 @@ export default ({ canvas, fabric }) => ({
     canvas.lowerCanvasEl.style.height = height
     canvas.upperCanvasEl.style.height = height
     canvas.wrapperEl.style.height = height
+
+    canvas.fire('canvas:display-height-changed', { height })
   },
 
   /**
@@ -130,7 +133,7 @@ export default ({ canvas, fabric }) => ({
    * 'scale-canvas' - Обновляет backstore-резолюцию канваса (масштабирует
    * экспортный размер канваса под размер изображения)
    */
-  importImage({ url, scale = 'image-cover' }) {
+  importImage({ url, scale = `image-${editorOptions.scaleType}` }) {
     if (!url || typeof url !== 'string') return
 
     fabric.FabricImage.fromURL(url).then((img) => {
@@ -179,7 +182,7 @@ export default ({ canvas, fabric }) => ({
    * 'cover' - скейлит картинку, чтобы она вписалась в размер канвас
    */
   imageFit(options = {}) {
-    const { object, type = 'image-contain' } = options
+    const { object, type = editorOptions.scaleType } = options
 
     const image = object || canvas.getActiveObject()
 
@@ -207,14 +210,22 @@ export default ({ canvas, fabric }) => ({
   },
 
   /**
-   * Сброс масштаба объекта до исходного
+   * Сброс масштаба объекта до дефолтного
    * @param {fabric.Object} object
    * @returns
+   *
+   * TODO: Сделать сброс ротейта флипа, и всяких прочих штук
    */
   resetObjectSize(object) {
     const currentObject = object || canvas.getActiveObject()
 
     if (!currentObject) return
+
+    if (currentObject.type === 'image') {
+      this.imageFit({ object: currentObject })
+
+      return
+    }
 
     currentObject.set({
       scaleX: 1,
@@ -261,6 +272,7 @@ export default ({ canvas, fabric }) => ({
     const newCanvasWidth = canvasWidth * multiplier
     const newCanvasHeight = canvasHeight * multiplier
 
+    this.resetZoom()
     this.setResolutionWidth(newCanvasWidth)
     this.setResolutionHeight(newCanvasHeight)
     this.resetObjectSize(image)
@@ -385,6 +397,8 @@ export default ({ canvas, fabric }) => ({
 
   /**
    * Вставка объекта
+   *
+   * TODO: При срабатывании этого метода проверять наличие объекта в буфере обмена
    */
   async paste() {
     if (!this.clipboard) return
@@ -414,26 +428,13 @@ export default ({ canvas, fabric }) => ({
     canvas.requestRenderAll()
   },
 
-  // TODO: Над этим нужно ещё поработать
-  setScale(scale = DEFAULT_SCALE) {
-    const currentZoom = canvas.getZoom()
-    const centerPointX = canvas.getWidth() / 2
-    const centerPointY = canvas.getHeight() / 2
-
-    const zoom = currentZoom + scale
-    console.log('zoom', zoom)
-    console.log('currentZoom', currentZoom)
-    console.log('scale', scale)
-
-    canvas.zoomToPoint({ x: centerPointX, y: centerPointY }, 0.4)
-  },
-
   /**
    * Увеличение/уменьшение масштаба
    * @param {Number} scale - Шаг зума
    * @param {Object} options - Координаты зума (по умолчанию центр канваса)
    * @param {Number} options.pointX - Координата X точки зума
    * @param {Number} options.pointY - Координата Y точки зума
+   * @fires canvas:zoom-changed
    * Если передавать координаты курсора, то нужно быть аккуратнее, так как юзер может выйти за пределы рабочей области
    */
   zoom(scale = DEFAULT_ZOOM_RATIO, options = {}) {
@@ -449,6 +450,37 @@ export default ({ canvas, fabric }) => ({
     if (zoom < MIN_ZOOM_RATIO) zoom = MIN_ZOOM_RATIO
 
     canvas.zoomToPoint({ x: Number(pointX), y: Number(pointY) }, zoom)
+
+    canvas.fire('canvas:zoom-changed', {
+      currentZoom: canvas.getZoom(),
+      zoom,
+      pointX,
+      pointY
+    })
+  },
+
+  /**
+   * Сброс зума
+   * @fires canvas:zoom-changed
+   */
+  resetZoom() {
+    const pointX = canvas.getWidth() / 2
+    const pointY = canvas.getHeight() / 2
+
+    canvas.zoomToPoint({ x: Number(pointX), y: Number(pointY) }, 1)
+
+    canvas.fire('canvas:zoom-changed', { currentZoom: canvas.getZoom() })
+  },
+
+  /**
+   * Установка зума и масштаба для канваса и объекта по умолчанию
+   */
+  setDefaultScale() {
+    this.resetZoom()
+    this.setResolutionWidth(editorOptions.width)
+    this.setResolutionHeight(editorOptions.height)
+    this.resetObjectSize()
+    canvas.renderAll()
   },
 
   /**
@@ -587,7 +619,8 @@ export default ({ canvas, fabric }) => ({
   rotate(angle = ROTATE_RATIO) {
     const obj = canvas.getActiveObject()
     if (!obj) return
-    obj.angle += angle
+    const newAngle = obj.angle + angle
+    obj.rotate(newAngle)
     canvas.renderAll()
   },
 

@@ -5,9 +5,6 @@ export const MAX_ZOOM_RATIO = 2
 // Шаг для зума
 export const DEFAULT_ZOOM_RATIO = 0.1
 
-// Масштаб по умолчанию
-export const DEFAULT_SCALE = -0.4
-
 // Шаг для кнопок поворота
 export const ROTATE_RATIO = 90
 
@@ -16,3 +13,5 @@ export const CANVAS_MIN_WIDTH = 256
 export const CANVAS_MIN_HEIGHT = 256
 export const CANVAS_MAX_WIDTH = 4096
 export const CANVAS_MAX_HEIGHT = 4096
+
+export const DEFAULT_SCALE_TYPE = 'contain'

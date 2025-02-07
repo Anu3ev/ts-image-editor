@@ -5,8 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Простой редактор на Fabric.js</title>
 <script type="module" src="/src/main.js"></script>
-<script src="/src/demo.js"></script>
+<script type="module" src="/src/demo/index.js"></script>
 <style>
+  body {
+    margin: 0 auto;
+    padding: 1rem;
+  }
+
   #canvas-container {
     display: flex;
     align-items: start;
@@ -26,18 +31,49 @@
     gap: 8px;
   }
 
-  h3, h4 {
+  .canvas-state {
+    padding: 1rem;
+    border: 1px solid #ccc;
+    display: flex;
+    flex-direction: column;
+    width: 300px;
+    gap: 8px;
+  }
+
+  h3, h4, hr {
     margin: 0;
     padding: 0;
+  }
+
+  hr {
+    width: 100%;
   }
 </style>
 </head>
 <body>
 <div id="canvas-container">
+  <div class="canvas-state">
+    <h3>Canvas State</h3>
+    <hr>
+
+    <h4>Canvas Resolution</h4>
+    <div id="canvas-resolution"></div>
+
+    <h4>Canvas Display Size</h4>
+    <div id="canvas-display-size"></div>
+
+    <h4>Current Canvas Zoom</h4>
+    <div id="canvas-zoom"></div>
+
+    <h4>Current Object Size</h4>
+    <div id="current-object-size"></div>
+  </div>
+
   <canvas id="editor-canvas" width="800" height="600"></canvas>
 
   <div class="controls">
     <h3>Controls</h3>
+    <hr>
 
     <div class="main-controls">
       <input type="file" id="file-input" multiple accept="image/*" style="display:none;" />
@@ -71,7 +107,7 @@
       <h4>Image Fit</h4>
       <button id="fit-contain-btn">Fit Contain</button>
       <button id="fit-cover-btn">Fit Cover</button>
-      <button id="reset-fit-btn">Reset Fit</button>
+      <button id="reset-fit-btn">Reset Object Fit</button>
     </div>
 
     <button id="scale-canvas-btn">Scale Canvas</button>
@@ -83,8 +119,8 @@
 
     <div class="rotate-controls">
       <h4>Rotate</h4>
-      <button id="rotate-plus-90-btn">Rotate +90</button>
       <button id="rotate-minus-90-btn">Rotate -90</button>
+      <button id="rotate-plus-90-btn">Rotate +90</button>
     </div>
 
     <div class="flip-controls">
@@ -97,7 +133,8 @@
       <h4>Resize</h4>
       <button id="zoom-in-btn">Zoom In</button>
       <button id="zoom-out-btn">Zoom Out</button>
-      <button id="default-scale-btn">Set default scale</button>
+      <button id="reset-zoom-btn">Reset Zoom</button>
+      <button id="set-default-scale-btn">Set Default Scale</button>
     </div>
 
     <div class="filter-controls">
@@ -115,7 +152,5 @@
 
   </div>
 </div>
-
-
 </body>
 </html>

@@ -1,68 +1,61 @@
-document.addEventListener('DOMContentLoaded', () => {
+import {
   // Кнопка выбора изображения
-  const chooseImageBtn = document.getElementById('choose-images-btn')
+  chooseImageBtn,
   // Кнопка сохранения
-  const saveCanvasBtn = document.getElementById('save-canvas')
+  saveCanvasBtn,
   // Инпут для загрузки файла
-  const fileInput = document.getElementById('file-input')
+  fileInput,
   // Очистить
-  const clearBtn = document.getElementById('clear-btn')
-
+  clearBtn,
   // Bring to front
-  const bringToFrontBtn = document.getElementById('bring-to-front-btn')
-
+  bringToFrontBtn,
   // Send to back
-  const sendToBackBtn = document.getElementById('send-to-back-btn')
-
+  sendToBackBtn,
   // Копировать-вставить
-  const copyBtn = document.getElementById('copy-btn')
-  const pasteBtn = document.getElementById('paste-btn')
-
+  copyBtn,
+  pasteBtn,
   // Поворот объекта
-  const rotateBtn = document.getElementById('rotate-plus-90-btn')
-  const rotateLeftBtn = document.getElementById('rotate-minus-90-btn')
-
+  rotateRightBtn,
+  rotateLeftBtn,
   // Flip
-  const flipXBtn = document.getElementById('flip-x-btn')
-  const flipYBtn = document.getElementById('flip-y-btn')
-
+  flipXBtn,
+  flipYBtn,
   // Select all
-  const selectAllBtn = document.getElementById('select-all-btn')
-
+  selectAllBtn,
   // Удалить объект
-  const deleteSelectedBtn = document.getElementById('delete-selected-btn')
-
+  deleteSelectedBtn,
   // Сгруппировать/разгруппировать выделенные объекты
-  const groupBtn = document.getElementById('group-btn')
-  const ungroupBtn = document.getElementById('ungroup-btn')
-
+  groupBtn,
+  ungroupBtn,
   // Zoom
-  const zoomInBtn = document.getElementById('zoom-in-btn')
-  const zoomOutBtn = document.getElementById('zoom-out-btn')
-  const defaultScaleBtn = document.getElementById('default-scale-btn')
-
+  zoomInBtn,
+  zoomOutBtn,
+  resetZoomBtn,
+  setDefaultScaleBtn,
   // Image fit
-  const imageFitContainBtn = document.getElementById('fit-contain-btn')
-  const imageFitCoverBtn = document.getElementById('fit-cover-btn')
-
+  imageFitContainBtn,
+  imageFitCoverBtn,
   // Сброс масштаба
-  const resetFit = document.getElementById('reset-fit-btn')
-
+  resetFit,
   // Scale canvas
-  const scaleCanvasBtn = document.getElementById('scale-canvas-btn')
+  scaleCanvasBtn,
+  // Элемент для отображения разрешения канваса
+  canvasResolutionNode,
+  // Элемент для отображения размера канваса
+  canvasDisplaySizeNode,
+  // Элемент для отображения размера текущего объекта
+  currentObjectSizeNode
+} from './elements.js'
 
-  // Инициализация редактора
-  window.insalesImageEditorInit('editor-canvas', {
-    width: 800,
-    height: 600,
-    displayWidth: '800px',
-    displayHeight: '600px'
-  })
+import {
+  getCanvasResolution,
+  getCanvasDisplaySize,
+  getCurrentObjectData,
+  importImage,
+  saveResult
+} from './methods.js'
 
-  const editorInstance = window['editor-canvas']
-
-  console.log('demo.js: editorInstance', editorInstance)
-
+export default (editorInstance) => {
   // Scale canvas
   scaleCanvasBtn.addEventListener('click', () => {
     editorInstance.scaleCanvas()
@@ -94,8 +87,13 @@ document.addEventListener('DOMContentLoaded', () => {
   })
 
   // Сброс масштаба
-  defaultScaleBtn.addEventListener('click', () => {
-    editorInstance.setScale()
+  resetZoomBtn.addEventListener('click', () => {
+    editorInstance.resetZoom()
+  })
+
+  // Установка дефолтного масштаба для всего
+  setDefaultScaleBtn.addEventListener('click', () => {
+    editorInstance.setDefaultScale()
   })
 
   // Увеличение масштаба
@@ -144,7 +142,7 @@ document.addEventListener('DOMContentLoaded', () => {
   })
 
   // Поворот объекта на 90 градусов
-  rotateBtn.addEventListener('click', () => {
+  rotateRightBtn.addEventListener('click', () => {
     editorInstance.rotate(90)
   })
 
@@ -165,39 +163,46 @@ document.addEventListener('DOMContentLoaded', () => {
 
   chooseImageBtn.addEventListener('click', () => {
     fileInput.click()
-    console.log('fileInput', fileInput)
   })
 
   fileInput.addEventListener('change', (e) => {
-    const { files } = e.target
-
-    for (let i = 0; i < files.length; i++) {
-      (function(file) {
-        const reader = new FileReader()
-        reader.onload = function(f) {
-          editorInstance.importImage({ url: f.target.result })
-        }
-        reader.readAsDataURL(file)
-      }(files[i]))
-    }
-
+    importImage(e, editorInstance)
     fileInput.value = ''
   })
 
   // Сохранение результата
-  saveCanvasBtn.addEventListener('click', async() => {
-    const file = await editorInstance.exportImageFile()
-
-    const url = URL.createObjectURL(file)
-    const link = document.createElement('a')
-
-    link.href = url
-    link.download = file.name
-
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-
-    URL.revokeObjectURL(url)
+  saveCanvasBtn.addEventListener('click', () => {
+    saveResult(editorInstance)
   })
-})
+
+  // Отображение разрешения канваса
+  canvasResolutionNode.textContent = getCanvasResolution(editorInstance)
+
+  // Отображение размера канваса
+  canvasDisplaySizeNode.textContent = getCanvasDisplaySize(editorInstance)
+
+  editorInstance.canvas.on('after:render', () => {
+    canvasResolutionNode.textContent = getCanvasResolution(editorInstance)
+    currentObjectSizeNode.textContent = getCurrentObjectData(editorInstance)
+  })
+
+  editorInstance.canvas.on('object:modified', () => {
+    currentObjectSizeNode.textContent = getCurrentObjectData(editorInstance)
+  })
+
+  editorInstance.canvas.on('canvas:display-width-changed', () => {
+    canvasDisplaySizeNode.textContent = getCanvasDisplaySize(editorInstance)
+  })
+
+  editorInstance.canvas.on('canvas:display-height-changed', () => {
+    canvasDisplaySizeNode.textContent = getCanvasDisplaySize(editorInstance)
+  })
+
+  // Canvas Zoom Node
+  const canvasZoomNode = document.getElementById('canvas-zoom')
+  canvasZoomNode.textContent = editorInstance.canvas.getZoom()
+
+  editorInstance.canvas.on('canvas:zoom-changed', ({ currentZoom }) => {
+    canvasZoomNode.textContent = currentZoom
+  })
+}

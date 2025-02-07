@@ -7,6 +7,12 @@ import Listeners from './listeners'
 // TODO: Функционал Undo/Redo
 // TODO: Режим рисования
 // TODO: При дабл клике по объекту возвращать его исходную (дефолтную) форму. Например, если растянули картинку, то при дабл клике она вернется к исходному размеру.
+// TODO: Тулбар появляющийся под выделенным объектом и возможность передачи кнопок в тулбар
+// TODO: Кастомные стили
+// TODO: Добавление объектов (квадраты, круги, стрелки, тексты)
+// TODO: Слушатели на шорткаты
+// TODO: drag'n'drop картинки
+// TODO: Если делаем скейлинг канваса, то объекты разъезжаются
 
 class InsalesImageEditor {
   constructor(canvasId, options) {
@@ -17,7 +23,7 @@ class InsalesImageEditor {
 
     Object.assign(
       this,
-      methods({ canvas: this.canvas, fabric })
+      methods({ canvas: this.canvas, fabric, options: adjustedOptions })
     )
 
     this.listeners = new Listeners({ editor: this, options: adjustedOptions })
