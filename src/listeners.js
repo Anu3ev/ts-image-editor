@@ -6,7 +6,7 @@
 class Listeners {
   /**
    * @param {Object} params
-   * @param {InsalesImageEditor} params.editor — редактор, содержащий канвас
+   * @param {ImageEditor} params.editor — редактор, содержащий канвас
    * @param {Object} params.options — настройки редактора (см. defaults.js)
    * @param {Boolean} [params.options.canvasDragging] — включить перетаскивание канваса
    * @param {Boolean} [params.options.mouseWheelZooming] — включить зум колесом мыши
@@ -70,6 +70,8 @@ class Listeners {
    * Обработчик перетаскивания канваса.
    * @param {Object} options
    * @param {Object} options.e — объект события
+   *
+   * TODO: Надо как-то ограничить область перетаскивания, чтобы канвас не уходил сильно далеко за пределы экрана
    */
   handleCanvasDragging({ e: event }) {
     if (!this.canvas.isDragging) return

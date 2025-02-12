@@ -44,7 +44,7 @@ import {
   // Элемент для отображения размера канваса
   canvasDisplaySizeNode,
   // Элемент для отображения размера текущего объекта
-  currentObjectSizeNode
+  currentObjectDataNode
 } from './elements.js'
 
 import {
@@ -183,11 +183,11 @@ export default (editorInstance) => {
 
   editorInstance.canvas.on('after:render', () => {
     canvasResolutionNode.textContent = getCanvasResolution(editorInstance)
-    currentObjectSizeNode.textContent = getCurrentObjectData(editorInstance)
+    currentObjectDataNode.textContent = getCurrentObjectData(editorInstance)
   })
 
   editorInstance.canvas.on('object:modified', () => {
-    currentObjectSizeNode.textContent = getCurrentObjectData(editorInstance)
+    currentObjectDataNode.textContent = getCurrentObjectData(editorInstance)
   })
 
   editorInstance.canvas.on('canvas:display-width-changed', () => {

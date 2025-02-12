@@ -10,6 +10,11 @@ import {
   CANVAS_MAX_HEIGHT
 } from './constants'
 
+import {
+  calculateScaleFactor,
+  calculateCanvasMultiplier
+} from './helpers'
+
 export default ({ canvas, fabric, options: editorOptions }) => ({
   /**
    * Устанавливаем внутреннюю ширину канваса (для экспорта)
@@ -133,35 +138,34 @@ export default ({ canvas, fabric, options: editorOptions }) => ({
    * 'scale-canvas' - Обновляет backstore-резолюцию канваса (масштабирует
    * экспортный размер канваса под размер изображения)
    */
-  importImage({ url, scale = `image-${editorOptions.scaleType}` }) {
+  async importImage({ url, scale = `image-${editorOptions.scaleType}` }) {
     if (!url || typeof url !== 'string') return
 
-    fabric.FabricImage.fromURL(url).then((img) => {
+    try {
+      const img = await fabric.FabricImage.fromURL(url)
+
       const canvasWidth = canvas.getWidth()
       const canvasHeight = canvas.getHeight()
 
       const { width: imageWidth, height: imageHeight } = img
 
-      if (scale === 'image-contain') {
-        const scaleFactor = Math.min(canvasWidth / imageWidth, canvasHeight / imageHeight)
-
-        if (scaleFactor < 1) {
-          img.scale(scaleFactor)
-        }
-      } else if (scale === 'image-cover') {
-        if (imageWidth > canvasWidth || imageHeight > canvasHeight) {
-          const scaleFactor = Math.max(canvasWidth / imageWidth, canvasHeight / imageHeight)
-          img.scale(scaleFactor)
-        }
-      } else if (scale === 'scale-canvas') {
-        const widthMultiplier = imageWidth / canvasWidth
-        const heightMultiplier = imageHeight / canvasHeight
-
-        const multiplier = Math.max(widthMultiplier, heightMultiplier)
+      if (scale === 'scale-canvas') {
+        const multiplier = calculateCanvasMultiplier({ canvas, imageObject: img })
 
         // Если multiplier больше 1, то изображение больше канваса по хотя бы одной оси
         if (multiplier > 1) {
           this.scaleCanvas({ object: img })
+        }
+      } else {
+        const scaleFactor = calculateScaleFactor({ canvas, imageObject: img, scaleType: scale })
+
+        if (scale === 'image-contain' && scaleFactor < 1) {
+          this.imageFit({ object: img, type: 'contain' })
+        } else if (
+          scale === 'image-cover'
+          && (imageWidth > canvasWidth || imageHeight > canvasHeight)
+        ) {
+          this.imageFit({ object: img, type: 'cover' })
         }
       }
 
@@ -170,7 +174,9 @@ export default ({ canvas, fabric, options: editorOptions }) => ({
       canvas.setActiveObject(img)
       canvas.centerObject(img)
       canvas.renderAll()
-    })
+    } catch (error) {
+      console.error('importImage error: ', error)
+    }
   },
 
   /**
@@ -188,23 +194,9 @@ export default ({ canvas, fabric, options: editorOptions }) => ({
 
     if (image?.type !== 'image') return
 
-    const canvasWidth = canvas.getWidth()
-    const canvasHeight = canvas.getHeight()
+    const scaleFactor = calculateScaleFactor({ canvas, imageObject: image, scaleType: type })
 
-    const imageWidth = image.width
-    const imageHeight = image.height
-
-    if (type === 'contain') {
-      const scaleFactor = Math.min(canvasWidth / imageWidth, canvasHeight / imageHeight)
-
-      image.scale(scaleFactor)
-    }
-
-    if (type === 'cover') {
-      const scaleFactor = Math.max(canvasWidth / imageWidth, canvasHeight / imageHeight)
-      image.scale(scaleFactor)
-    }
-
+    image.scale(scaleFactor)
     canvas.centerObject(image)
     canvas.renderAll()
   },
@@ -213,23 +205,53 @@ export default ({ canvas, fabric, options: editorOptions }) => ({
    * Сброс масштаба объекта до дефолтного
    * @param {fabric.Object} object
    * @returns
-   *
-   * TODO: Сделать сброс ротейта флипа, и всяких прочих штук
    */
   resetObjectSize(object) {
     const currentObject = object || canvas.getActiveObject()
 
     if (!currentObject) return
 
-    if (currentObject.type === 'image') {
-      this.imageFit({ object: currentObject })
+    if (currentObject.type !== 'image') {
+      currentObject.set({
+        scaleX: 1,
+        scaleY: 1,
+        flipX: false,
+        flipY: false,
+        angle: 0
+      })
 
-      return
+      canvas.centerObject(currentObject)
+      canvas.renderAll()
+    }
+
+    const canvasWidth = canvas.getWidth()
+    const canvasHeight = canvas.getHeight()
+
+    const { width: imageWidth, height: imageHeight } = currentObject
+
+    const scaleFactor = calculateScaleFactor({
+      canvas,
+      imageObject: currentObject,
+      scaleType: editorOptions.scaleType
+    })
+
+    // Делаем contain и cover только если размеры изображения больше размеров канваса, иначе просто сбрасываем
+    if (
+      (editorOptions.scaleType === 'contain' && scaleFactor < 1)
+      || (
+        editorOptions.scaleType === 'cover'
+        && (imageWidth > canvasWidth || imageHeight > canvasHeight)
+      )
+    ) {
+      this.imageFit({ object: currentObject, type: editorOptions.scaleType })
+    } else {
+      currentObject.set({ scaleX: 1, scaleY: 1 })
     }
 
     currentObject.set({
-      scaleX: 1,
-      scaleY: 1
+      flipX: false,
+      flipY: false,
+      angle: 0
     })
 
     canvas.centerObject(currentObject)
@@ -291,7 +313,7 @@ export default ({ canvas, fabric, options: editorOptions }) => ({
     canvas.discardActiveObject()
     canvas.renderAll()
 
-    const canvasEl = this.canvas.lowerCanvasEl
+    const canvasEl = canvas.lowerCanvasEl
 
     const blob = await new Promise((resolve) => {
       canvasEl.toBlob((blobObject) => {
@@ -480,6 +502,13 @@ export default ({ canvas, fabric, options: editorOptions }) => ({
     this.setResolutionWidth(editorOptions.width)
     this.setResolutionHeight(editorOptions.height)
     this.resetObjectSize()
+    this.centerCanvas()
+    canvas.renderAll()
+  },
+
+  centerCanvas() {
+    const currentZoom = this.canvas.getZoom()
+    this.canvas.setViewportTransform([currentZoom, 0, 0, currentZoom, 0, 0])
     canvas.renderAll()
   },
 
@@ -613,14 +642,14 @@ export default ({ canvas, fabric, options: editorOptions }) => ({
   /**
    * Поворот объекта на заданный угол
    * @param {number} angle
-   *
-   * TODO: разобраться почему сломался
    */
   rotate(angle = ROTATE_RATIO) {
     const obj = canvas.getActiveObject()
     if (!obj) return
     const newAngle = obj.angle + angle
     obj.rotate(newAngle)
+    obj.setCoords()
+
     canvas.renderAll()
   },
 

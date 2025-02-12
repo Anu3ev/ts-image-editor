@@ -2,7 +2,7 @@ import initListeners from './listeners'
 
 document.addEventListener('DOMContentLoaded', () => {
   // Инициализация редактора
-  window.insalesImageEditorInit('editor-canvas', {
+  window.ImageEditorInit('editor-canvas', {
     width: 800,
     height: 600,
     displayWidth: '800px',

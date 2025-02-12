@@ -13,8 +13,10 @@ import Listeners from './listeners'
 // TODO: Слушатели на шорткаты
 // TODO: drag'n'drop картинки
 // TODO: Если делаем скейлинг канваса, то объекты разъезжаются
+// TODO: Починить остающиеся элементы контроля после массово удаления объектов
+// TODO: Монтажная область (как в Figma)
 
-class InsalesImageEditor {
+class ImageEditor {
   constructor(canvasId, options) {
     const adjustedOptions = { ...defaults, ...options }
 
@@ -33,4 +35,4 @@ class InsalesImageEditor {
   }
 }
 
-export default InsalesImageEditor
+export default ImageEditor

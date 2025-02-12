@@ -12,7 +12,7 @@ export default {
 
   // Кастомные опции
   bringToFrontOnSelection: true,
-  mouseWheelZooming: true,
+  mouseWheelZooming: false,
   canvasDragging: false,
 
   // Дефолтный тип скейлинга для объектов (cotain/cover)

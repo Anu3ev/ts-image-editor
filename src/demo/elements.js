@@ -58,4 +58,4 @@ export const canvasResolutionNode = document.getElementById('canvas-resolution')
 // Элемент для отображения размера канваса
 export const canvasDisplaySizeNode = document.getElementById('canvas-display-size')
 // Элемент для отображения размера текущего объекта
-export const currentObjectSizeNode = document.getElementById('current-object-size')
+export const currentObjectDataNode = document.getElementById('current-object-data')

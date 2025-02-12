@@ -44,7 +44,6 @@ export default [{
       CodeMirror: 'readonly',
       self: 'writable',
       insYmaps: 'readonly',
-      InSales: 'readonly',
       process: 'readonly'
     },
 

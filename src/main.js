@@ -3,4 +3,4 @@
 // import viteLogo from '/vite.svg'
 import initEditor from './init-editor'
 
-window.insalesImageEditorInit = initEditor
+window.ImageEditorInit = initEditor

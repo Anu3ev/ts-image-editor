@@ -1,7 +1,9 @@
 import Editor from './editor'
+import { createCanvasElement } from './canvasCreator';
 
 export default function(canvasId, options = {}) {
-  console.log('init-editor.js')
+  createCanvasElement(canvasId, options)
+
   // Инициализируем интанс редактора изображений
   window[canvasId] = new Editor(canvasId, options)
 }
