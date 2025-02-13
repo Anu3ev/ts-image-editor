@@ -855,7 +855,15 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
     canvas.isDrawingMode = false
   },
 
-  //  TODO: Нужно сделать добавление по координатам курсора
+  /**
+   * Добавление прямоугольника
+   * @param {Object} options
+   * @param {Number} options.left - Координата X
+   * @param {Number} options.top - Координата Y
+   * @param {Number} options.width - Ширина
+   * @param {Number} options.height - Высота
+   * @param {String} options.color - Цвет
+   */
   addRectangle(options = {}) {
     const {
       left,
@@ -883,26 +891,68 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
     canvas.renderAll()
   },
 
-  addCircle() {
+  /**
+   * Добавление круга
+   * @param {Object} options
+   * @param {Number} options.left - Координата X
+   * @param {Number} options.top - Координата Y
+   * @param {Number} options.radius - Радиус
+   * @param {String} options.color - Цвет
+   */
+  addCircle(options = {}) {
+    const {
+      left,
+      top,
+      radius = 50,
+      color = 'green'
+    } = options
+
     const circle = new fabric.Circle({
-      left: 200,
-      top: 200,
-      fill: 'green',
-      radius: 50
+      left,
+      top,
+      fill: color,
+      radius
     })
+
+    if (!left && !top) {
+      canvas.centerObject(circle)
+    }
+
     canvas.add(circle)
     canvas.setActiveObject(circle)
     canvas.renderAll()
   },
 
-  addTriangle() {
+  /**
+   * Добавление треугольника
+   * @param {Object} options
+   * @param {Number} options.left - Координата X
+   * @param {Number} options.top - Координата Y
+   * @param {Number} options.width - Ширина
+   * @param {Number} options.height - Высота
+   * @param {String} options.color - Цвет
+   */
+  addTriangle(options = {}) {
+    const {
+      left,
+      top,
+      width = 100,
+      height = 100,
+      color = 'yellow'
+    } = options
+
     const triangle = new fabric.Triangle({
-      left: 100,
-      top: 300,
-      fill: 'yellow',
-      width: 100,
-      height: 100
+      left,
+      top,
+      fill: color,
+      width,
+      height
     })
+
+    if (!left && !top) {
+      canvas.centerObject(triangle)
+    }
+
     canvas.add(triangle)
     canvas.setActiveObject(triangle)
     canvas.renderAll()
