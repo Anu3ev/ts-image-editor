@@ -585,7 +585,9 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
     const pointX = canvas.getWidth() / 2
     const pointY = canvas.getHeight() / 2
 
-    canvas.zoomToPoint({ x: Number(pointX), y: Number(pointY) }, 1)
+    const { defaultScale = 1 } = editorOptions
+
+    canvas.zoomToPoint({ x: Number(pointX), y: Number(pointY) }, defaultScale)
 
     canvas.fire('canvas:zoom-changed', { currentZoom: canvas.getZoom() })
   },
@@ -598,13 +600,7 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
     this.setResolutionWidth(editorOptions.width)
     this.setResolutionHeight(editorOptions.height)
     this.resetObjectSize()
-    this.centerCanvas()
-    canvas.renderAll()
-  },
-
-  centerCanvas() {
-    const currentZoom = this.canvas.getZoom()
-    this.canvas.setViewportTransform([currentZoom, 0, 0, currentZoom, 0, 0])
+    centerCanvas()
     canvas.renderAll()
   },
 

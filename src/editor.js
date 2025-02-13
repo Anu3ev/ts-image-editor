@@ -71,6 +71,7 @@ class ImageEditor {
 
     this.setDisplayWidth(options.displayWidth)
     this.setDisplayHeight(options.displayHeight)
+    this.setDefaultScale()
   }
 }
 

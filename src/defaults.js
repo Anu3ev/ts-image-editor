@@ -10,6 +10,8 @@ export default {
   // Cохраняют ли объекты свой текущий порядок (z-index) при выделении
   preserveObjectStacking: true,
 
+  defaultScale: 0.7,
+
   // Кастомные опции
   bringToFrontOnSelection: true,
   mouseWheelZooming: true,
