@@ -12,8 +12,10 @@ export default {
 
   // Кастомные опции
   bringToFrontOnSelection: true,
-  mouseWheelZooming: false,
-  canvasDragging: false,
+  mouseWheelZooming: true,
+  canvasDragging: true,
+  copyObjectsByHotkey: true,
+  pasteImageFromClipboard: true,
 
   // Дефолтный тип скейлинга для объектов (cotain/cover)
   scaleType: 'contain'

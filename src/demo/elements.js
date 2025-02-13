@@ -59,3 +59,8 @@ export const canvasResolutionNode = document.getElementById('canvas-resolution')
 export const canvasDisplaySizeNode = document.getElementById('canvas-display-size')
 // Элемент для отображения размера текущего объекта
 export const currentObjectDataNode = document.getElementById('current-object-data')
+
+// Добавление фигур
+export const addRectBtn = document.getElementById('add-rect-btn')
+export const addCircleBtn = document.getElementById('add-circle-btn')
+export const addTriangleBtn = document.getElementById('add-triangle-btn')

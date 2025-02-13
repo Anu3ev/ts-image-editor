@@ -1,8 +1,11 @@
 import * as fabric from 'fabric'
 
-import defaults from './defaults'
 import methods from './methods'
 import Listeners from './listeners'
+
+import {
+  createMosaicPattern
+} from './helpers'
 
 // TODO: Функционал Undo/Redo
 // TODO: Режим рисования
@@ -16,22 +19,58 @@ import Listeners from './listeners'
 // TODO: Починить остающиеся элементы контроля после массово удаления объектов
 // TODO: Монтажная область (как в Figma)
 
+/**
+ * Класс редактора изображений.
+ * @class
+ * @param {string} canvasId - идентификатор канваса
+ * @param {object} options - опции и настройки
+ *
+ */
 class ImageEditor {
-  constructor(canvasId, options) {
-    const adjustedOptions = { ...defaults, ...options }
+  constructor(canvasId, options = {}) {
+    this.canvas = new fabric.Canvas(canvasId, options)
 
-    this.canvas = new fabric.Canvas(canvasId, adjustedOptions)
+    this.montageArea = new fabric.Rect({
+      width: options.width,
+      height: options.height,
+      fill: createMosaicPattern(fabric),
+      stroke: null,
+      strokeWidth: 0,
+      selectable: false,
+      evented: false
+    })
+
+    this.canvas.add(this.montageArea)
+
+    // Создаем область для клиппинга (без fill, чтобы не влиял на экспорт)
+    const montageAreaClip = new fabric.Rect({
+      width: options.width,
+      height: options.height,
+      stroke: null,
+      strokeWidth: 0,
+      selectable: false,
+      evented: false
+    })
+
+    this.canvas.clipPath = montageAreaClip
+    this.canvas.renderAll()
+
     this.clipboard = null
 
     Object.assign(
       this,
-      methods({ canvas: this.canvas, fabric, options: adjustedOptions })
+      methods({
+        canvas: this.canvas,
+        montageArea: this.montageArea,
+        fabric,
+        options
+      })
     )
 
-    this.listeners = new Listeners({ editor: this, options: adjustedOptions })
+    this.listeners = new Listeners({ editor: this, options })
 
-    this.setDisplayWidth(adjustedOptions?.displayWidth)
-    this.setDisplayHeight(adjustedOptions?.displayHeight)
+    this.setDisplayWidth(options.displayWidth)
+    this.setDisplayHeight(options.displayHeight)
   }
 }
 

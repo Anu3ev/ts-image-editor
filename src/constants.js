@@ -13,5 +13,3 @@ export const CANVAS_MIN_WIDTH = 256
 export const CANVAS_MIN_HEIGHT = 256
 export const CANVAS_MAX_WIDTH = 4096
 export const CANVAS_MAX_HEIGHT = 4096
-
-export const DEFAULT_SCALE_TYPE = 'contain'

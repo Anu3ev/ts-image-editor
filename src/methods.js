@@ -12,10 +12,21 @@ import {
 
 import {
   calculateScaleFactor,
-  calculateCanvasMultiplier
+  calculateCanvasMultiplier,
+  centerCanvas
 } from './helpers'
 
-export default ({ canvas, fabric, options: editorOptions }) => ({
+/**
+ * Методы для работы с канвасом
+ * @param {Object} params
+ * @param {Canvas} params.canvas - объект канваса
+ * @param {Rect} params.montageArea - объект монтажной области
+ * @param {Object} params.fabric - объект fabric
+ * @param {Object} params.options - опции редактора
+ *
+ * @returns {Object} методы для работы с канвасом
+ */
+export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
   /**
    * Устанавливаем внутреннюю ширину канваса (для экспорта)
    * @param {String} width
@@ -26,9 +37,7 @@ export default ({ canvas, fabric, options: editorOptions }) => ({
     if (!width) return
 
     const { preserveProportional } = options
-
-    const currentWidth = canvas.getWidth()
-    const currentHeight = canvas.getHeight()
+    const { width: montageAreaWidth, height: montageAreaHeight } = montageArea
 
     let adjustedWidth = width
     if (adjustedWidth < CANVAS_MIN_WIDTH) adjustedWidth = CANVAS_MIN_WIDTH
@@ -46,15 +55,19 @@ export default ({ canvas, fabric, options: editorOptions }) => ({
 
     canvas.width = adjustedWidth
 
+    montageArea.width = adjustedWidth
+    canvas.clipPath.width = adjustedWidth
+
     // Если нужно сохранить пропорции, вычисляем новую высоту
     if (preserveProportional) {
-      const factor = adjustedWidth / currentWidth
-      const newHeight = currentHeight * factor
+      const factor = adjustedWidth / montageAreaWidth
+      const newHeight = montageAreaHeight * factor
 
       this.setResolutionHeight(newHeight)
     }
 
-    canvas.renderAll()
+    // Центрируем clipPath и монтажную область относительно новых размеров
+    centerCanvas()
   },
 
   /**
@@ -67,9 +80,7 @@ export default ({ canvas, fabric, options: editorOptions }) => ({
     if (!height) return
 
     const { preserveProportional } = options
-
-    const currentWidth = canvas.getWidth()
-    const currentHeight = canvas.getHeight()
+    const { width: montageAreaWidth, height: montageAreaHeight } = montageArea
 
     let adjustedHeight = height
     if (adjustedHeight < CANVAS_MIN_HEIGHT) adjustedHeight = CANVAS_MIN_HEIGHT
@@ -87,15 +98,19 @@ export default ({ canvas, fabric, options: editorOptions }) => ({
 
     canvas.height = adjustedHeight
 
+    montageArea.height = adjustedHeight
+    canvas.clipPath.height = adjustedHeight
+
     // Если нужно сохранить пропорции, вычисляем новую ширину
     if (preserveProportional) {
-      const factor = adjustedHeight / currentHeight
-      const newWidth = currentWidth * factor
+      const factor = adjustedHeight / montageAreaHeight
+      const newWidth = montageAreaWidth * factor
 
       this.setResolutionWidth(newWidth)
     }
 
-    canvas.renderAll()
+    // Центрируем clipPath и монтажную область относительно новых размеров
+    centerCanvas()
   },
 
   /**
@@ -103,12 +118,33 @@ export default ({ canvas, fabric, options: editorOptions }) => ({
    * @param {String} width
    * @fires canvas:display-width-changed
    */
-  setDisplayWidth(width) {
-    if (!width || typeof width !== 'string') return
+  setDisplayWidth(width, options = {}) {
+    if (!width) return
 
-    canvas.lowerCanvasEl.style.width = width
-    canvas.upperCanvasEl.style.width = width
-    canvas.wrapperEl.style.width = width
+    const numericWidth = parseFloat(width)
+
+    // eslint-disable-next-line no-restricted-globals
+    if (isNaN(numericWidth)) return
+
+    const { preserveProportional } = options
+
+    const { width: currentDisplayWidth, height: currentDisplayHeight } = canvas.lowerCanvasEl.style
+
+    const stringWidth = `${numericWidth}px`
+
+    canvas.lowerCanvasEl.style.width = stringWidth
+    canvas.upperCanvasEl.style.width = stringWidth
+    canvas.wrapperEl.style.width = stringWidth
+    editorOptions.editorContainer.style.width = stringWidth
+
+    // Если нужно сохранить пропорции, вычисляем новую высоту
+    // eslint-disable-next-line no-restricted-globals
+    if (preserveProportional) {
+      const factor = numericWidth / parseFloat(currentDisplayWidth)
+      const newHeight = parseFloat(currentDisplayHeight) * factor
+
+      this.setDisplayHeight(newHeight)
+    }
 
     canvas.fire('canvas:display-width-changed', { width })
   },
@@ -118,12 +154,32 @@ export default ({ canvas, fabric, options: editorOptions }) => ({
    * @param {String} height
    * @fires canvas:display-height-changed
    */
-  setDisplayHeight(height) {
-    if (!height || typeof height !== 'string') return
+  setDisplayHeight(height, options = {}) {
+    if (!height) return
 
-    canvas.lowerCanvasEl.style.height = height
-    canvas.upperCanvasEl.style.height = height
-    canvas.wrapperEl.style.height = height
+    const numericHeight = parseFloat(height)
+
+    // eslint-disable-next-line no-restricted-globals
+    if (isNaN(numericHeight)) return
+
+    const { preserveProportional } = options
+
+    const { width: currentDisplayWidth, height: currentDisplayHeight } = canvas.lowerCanvasEl.style
+
+    const stringHeight = `${numericHeight}px`
+
+    canvas.lowerCanvasEl.style.height = stringHeight
+    canvas.upperCanvasEl.style.height = stringHeight
+    canvas.wrapperEl.style.height = stringHeight
+    editorOptions.editorContainer.style.height = stringHeight
+
+    // Если нужно сохранить пропорции, вычисляем новую высоту
+    if (preserveProportional) {
+      const factor = numericHeight / parseFloat(currentDisplayHeight)
+      const newHeight = parseFloat(currentDisplayWidth) * factor
+
+      this.setDisplayWidth(newHeight)
+    }
 
     canvas.fire('canvas:display-height-changed', { height })
   },
@@ -150,14 +206,14 @@ export default ({ canvas, fabric, options: editorOptions }) => ({
       const { width: imageWidth, height: imageHeight } = img
 
       if (scale === 'scale-canvas') {
-        const multiplier = calculateCanvasMultiplier({ canvas, imageObject: img })
+        const multiplier = calculateCanvasMultiplier({ montageArea, imageObject: img })
 
         // Если multiplier больше 1, то изображение больше канваса по хотя бы одной оси
         if (multiplier > 1) {
           this.scaleCanvas({ object: img })
         }
       } else {
-        const scaleFactor = calculateScaleFactor({ canvas, imageObject: img, scaleType: scale })
+        const scaleFactor = calculateScaleFactor({ montageArea, imageObject: img, scaleType: scale })
 
         if (scale === 'image-contain' && scaleFactor < 1) {
           this.imageFit({ object: img, type: 'contain' })
@@ -194,7 +250,7 @@ export default ({ canvas, fabric, options: editorOptions }) => ({
 
     if (image?.type !== 'image') return
 
-    const scaleFactor = calculateScaleFactor({ canvas, imageObject: image, scaleType: type })
+    const scaleFactor = calculateScaleFactor({ montageArea, imageObject: image, scaleType: type })
 
     image.scale(scaleFactor)
     canvas.centerObject(image)
@@ -230,7 +286,7 @@ export default ({ canvas, fabric, options: editorOptions }) => ({
     const { width: imageWidth, height: imageHeight } = currentObject
 
     const scaleFactor = calculateScaleFactor({
-      canvas,
+      montageArea,
       imageObject: currentObject,
       scaleType: editorOptions.scaleType
     })
@@ -283,16 +339,15 @@ export default ({ canvas, fabric, options: editorOptions }) => ({
       return
     }
 
-    const canvasWidth = canvas.getWidth()
-    const canvasHeight = canvas.getHeight()
+    const { width: montageAreaWidth, height: montageAreaHeight } = montageArea
 
-    const widthMultiplier = imageWidth / canvasWidth
-    const heightMultiplier = imageHeight / canvasHeight
+    const widthMultiplier = imageWidth / montageAreaWidth
+    const heightMultiplier = imageHeight / montageAreaHeight
 
     const multiplier = Math.max(widthMultiplier, heightMultiplier)
 
-    const newCanvasWidth = canvasWidth * multiplier
-    const newCanvasHeight = canvasHeight * multiplier
+    const newCanvasWidth = montageAreaWidth * multiplier
+    const newCanvasHeight = montageAreaHeight * multiplier
 
     this.resetZoom()
     this.setResolutionWidth(newCanvasWidth)
@@ -304,23 +359,48 @@ export default ({ canvas, fabric, options: editorOptions }) => ({
   },
 
   /**
-   * Экспорт изображения в файл
-   * @param {string} fileName
-   * @param {string} contentType
-   * @returns {Promise<File>}
-   */
+ * Экспорт изображения в файл – экспортируется содержимое монтажной области.
+ * Независимо от текущего зума, экспортируется монтажная область в исходном масштабе.
+ * @param {string} fileName
+ * @param {string} contentType
+ * @returns {Promise<File>}
+ */
   async exportImageFile(fileName = nanoid(), contentType = 'image/png') {
+  // Сброс активного объекта и ререндер
     canvas.discardActiveObject()
     canvas.renderAll()
 
-    const canvasEl = canvas.lowerCanvasEl
+    // Сохраняем текущий viewportTransform (матрицу масштабирования и сдвига)
+    const savedTransform = canvas.viewportTransform.slice()
 
-    const blob = await new Promise((resolve) => {
-      canvasEl.toBlob((blobObject) => {
-        resolve(blobObject)
-      }, contentType)
+    // Сбрасываем viewportTransform до идентичной матрицы,
+    // чтобы экспортировать содержимое в координатах канваса без зума
+    canvas.viewportTransform = [1, 0, 0, 1, 0, 0]
+    canvas.renderAll()
+
+    // Получаем координаты монтажной области.
+    // Предполагаем, что montageArea – это объект, добавленный на канвас,
+    // с его собственными координатами left, top, width и height.
+    const { left, top, width, height } = montageArea
+
+    montageArea.visible = false
+
+    // Вызываем toDataURL с указанием нужной области.
+    const dataUrl = canvas.toDataURL({
+      format: contentType.split('/')[1], // например, 'png'
+      left,
+      top,
+      width,
+      height
     })
 
+    // Восстанавливаем сохранённый viewportTransform и заливку для монтажной области
+    canvas.viewportTransform = savedTransform
+    montageArea.visible = true
+    canvas.renderAll()
+
+    // Преобразуем dataUrl в Blob и затем в File
+    const blob = await (await fetch(dataUrl)).blob()
     return new File([blob], fileName, { type: contentType })
   },
 
@@ -385,6 +465,7 @@ export default ({ canvas, fabric, options: editorOptions }) => ({
 
   /**
    * Очистка холста
+   * TODO: Полностью удаляет всё, в том числе монтажную область
    */
   clearCanvas() {
     canvas.clear()
@@ -392,6 +473,7 @@ export default ({ canvas, fabric, options: editorOptions }) => ({
 
   /**
    * Выделить все объекты
+   * TODO: Выделяет всё, в том числе монтажную область
    */
   selectAll() {
     canvas.discardActiveObject()
@@ -405,22 +487,36 @@ export default ({ canvas, fabric, options: editorOptions }) => ({
   /**
    * Копирование объекта
    */
-  copy() {
+  async copy() {
     const activeObject = canvas.getActiveObject()
-
     if (!activeObject) return
 
-    activeObject
-      .clone()
-      .then((cloned) => {
-        this.clipboard = cloned
-      })
+    const clonedObject = await activeObject.clone()
+
+    this.clipboard = clonedObject
+
+    // Сохраняем объект в локальном буфере редактора
+    if (this.clipboard.type !== 'image') {
+      await navigator.clipboard.writeText(['application/image-editor', JSON.stringify(clonedObject)])
+
+      return
+    }
+
+    // Если это изображение, то сохраним его в системном буфере
+    const clonedDataUrl = this.clipboard.toDataURL()
+    const blob = await (await fetch(clonedDataUrl)).blob()
+
+    const clipboardItem = new ClipboardItem({ [blob.type]: blob })
+
+    try {
+      await navigator.clipboard.write([clipboardItem])
+    } catch (error) {
+      console.error('Ошибка записи в системный буфер обмена:', error)
+    }
   },
 
   /**
    * Вставка объекта
-   *
-   * TODO: При срабатывании этого метода проверять наличие объекта в буфере обмена
    */
   async paste() {
     if (!this.clipboard) return
@@ -759,43 +855,56 @@ export default ({ canvas, fabric, options: editorOptions }) => ({
     canvas.isDrawingMode = false
   },
 
-  // TODO: Проверить что работает
-  addRectangle() {
-    const rect = new fabric.fabricRect({
-      left: 100,
-      top: 100,
-      fill: 'blue',
-      width: 100,
-      height: 80
+  //  TODO: Нужно сделать добавление по координатам курсора
+  addRectangle(options = {}) {
+    const {
+      left,
+      top,
+      width = 100,
+      height = 100,
+      color = 'blue'
+    } = options
+
+    const rect = new fabric.Rect({
+      left,
+      top,
+      fill: color,
+      width,
+      height
     })
+
     canvas.add(rect)
+
+    if (!left && !top) {
+      canvas.centerObject(rect)
+    }
+
+    canvas.setActiveObject(rect)
     canvas.renderAll()
   },
 
-  // TODO: Проверить что работает
   addCircle() {
-    const circle = new fabric.fabricCircle({
+    const circle = new fabric.Circle({
       left: 200,
       top: 200,
       fill: 'green',
       radius: 50
     })
     canvas.add(circle)
+    canvas.setActiveObject(circle)
     canvas.renderAll()
   },
 
-  // TODO: Проверить что работает
-  addRoundRect() {
-    const roundRect = new fabric.fabricRect({
-      left: 300,
-      top: 100,
-      fill: 'orange',
+  addTriangle() {
+    const triangle = new fabric.Triangle({
+      left: 100,
+      top: 300,
+      fill: 'yellow',
       width: 100,
-      height: 100,
-      rx: 20, // радиус скругления по горизонтали
-      ry: 20 // радиус скругления по вертикали
+      height: 100
     })
-    canvas.add(roundRect)
+    canvas.add(triangle)
+    canvas.setActiveObject(triangle)
     canvas.renderAll()
   }
 })

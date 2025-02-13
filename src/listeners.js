@@ -1,6 +1,8 @@
 // TODO: Удаление объекта по нажатию на Delete
 // TODO: Копирование объекта по нажатию на Ctrl+C
 // TODO: Вставка объекта по нажатию на Ctrl+V
+// TODO: Отмена действия по нажатию на Ctrl+Z
+// TODO: Повтор действия по нажатию на Ctrl+Y
 // TODO: Дефолтный скейлинг
 
 class Listeners {
@@ -24,7 +26,13 @@ class Listeners {
    * Инициализация всех обработчиков.
    */
   init() {
-    const { canvasDragging, mouseWheelZooming, bringToFrontOnSelection } = this.options
+    const {
+      canvasDragging,
+      mouseWheelZooming,
+      bringToFrontOnSelection,
+      copyObjectsByHotkey,
+      pasteImageFromClipboard
+    } = this.options
 
     // Перетаскивание канваса
     if (canvasDragging) {
@@ -40,6 +48,79 @@ class Listeners {
     if (bringToFrontOnSelection) {
       this.enableBringToFrontOnSelection()
     }
+
+    // Копирование объектов сочетанием клавиш
+    if (copyObjectsByHotkey) {
+      this.enableCopyObjectsByHotkey()
+    }
+
+    // Вставка изображения из буфера обмена сочетанием клавиш
+    if (pasteImageFromClipboard) {
+      this.enablePasteImageFromClipboard()
+    }
+  }
+
+  /**
+   * Включает копирование объектов сочетанием клавиш.
+   * При нажатии Ctrl+C копирует выделенные объекты.
+   */
+  enableCopyObjectsByHotkey() {
+    document.addEventListener('keydown', this.handleCopyEvent.bind(this))
+  }
+
+  /**
+   * Обработчик копирования объектов.
+   * @param {Object} event — объект события
+   * @param {Boolean} event.ctrlKey — зажата ли клавиша Ctrl
+   * @param {Boolean} event.metaKey — зажата ли клавиша Cmd (для Mac)
+   * @param {String} event.code — код клавиши
+   */
+  handleCopyEvent(event) {
+    const { ctrlKey, metaKey, code } = event
+
+    // Для Mac можно проверять event.metaKey вместо event.ctrlKey
+    if ((!ctrlKey && !metaKey) || code !== 'KeyC') return
+
+    event.preventDefault()
+    this.editor.copy()
+  }
+
+  /**
+   * Включает вставку изображений и объектов сочетанием клавиш.
+   */
+  enablePasteImageFromClipboard() {
+    document.addEventListener('paste', this.handlePasteEvent.bind(this))
+  }
+
+  /**
+   * Обработчик вставки объекта или изображения из буфера обмена.
+   * @param {Object} event — объект события
+   * @param {Object} event.clipboardData — данные из буфера обмена
+   * @param {Array} event.clipboardData.items — элементы буфера обмена
+   */
+  handlePasteEvent({ clipboardData }) {
+    if (!clipboardData?.items?.length) return
+
+    const { items } = clipboardData
+    const lastItem = items[items.length - 1]
+
+    // Если это объект редактора и не изображение, то вставляем его как есть
+    if (lastItem.type.indexOf('image') === -1) {
+      this.editor.paste()
+
+      return
+    }
+
+    const blob = lastItem.getAsFile()
+    if (!blob) return
+
+    const reader = new FileReader()
+
+    reader.onload = (f) => {
+      this.editor.importImage({ url: f.target.result })
+    }
+
+    reader.readAsDataURL(blob)
   }
 
   /**

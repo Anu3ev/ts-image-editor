@@ -44,7 +44,11 @@ import {
   // Элемент для отображения размера канваса
   canvasDisplaySizeNode,
   // Элемент для отображения размера текущего объекта
-  currentObjectDataNode
+  currentObjectDataNode,
+  // Добавление фигур
+  addRectBtn,
+  addCircleBtn,
+  addTriangleBtn,
 } from './elements.js'
 
 import {
@@ -173,6 +177,21 @@ export default (editorInstance) => {
   // Сохранение результата
   saveCanvasBtn.addEventListener('click', () => {
     saveResult(editorInstance)
+  })
+
+  // Добавление прямоугольника
+  addRectBtn.addEventListener('click', () => {
+    editorInstance.addRectangle()
+  })
+
+  // Добавление круга
+  addCircleBtn.addEventListener('click', () => {
+    editorInstance.addCircle()
+  })
+
+  // Добавление треугольника
+  addTriangleBtn.addEventListener('click', () => {
+    editorInstance.addTriangle()
   })
 
   // Отображение разрешения канваса
