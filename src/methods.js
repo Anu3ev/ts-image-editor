@@ -262,7 +262,7 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
    * @param {fabric.Object} object
    * @returns
    */
-  resetObjectSize(object) {
+  resetObject(object) {
     const currentObject = object || canvas.getActiveObject()
 
     if (!currentObject) return
@@ -352,7 +352,7 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
     this.resetZoom()
     this.setResolutionWidth(newCanvasWidth)
     this.setResolutionHeight(newCanvasHeight)
-    this.resetObjectSize(image)
+    this.resetObject(image)
 
     canvas.centerObject(image)
     canvas.renderAll()
@@ -599,7 +599,7 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
     this.resetZoom()
     this.setResolutionWidth(editorOptions.width)
     this.setResolutionHeight(editorOptions.height)
-    this.resetObjectSize()
+    this.resetObject()
     centerCanvas()
     canvas.renderAll()
   },

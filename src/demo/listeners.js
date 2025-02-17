@@ -65,9 +65,9 @@ export default (editorInstance) => {
     editorInstance.scaleCanvas()
   })
 
-  // Сброс масштаба
+  // Сброс параметров объекта до дефолтных
   resetFit.addEventListener('click', () => {
-    editorInstance.resetObjectSize()
+    editorInstance.resetObject()
   })
 
   // Image fit contain
