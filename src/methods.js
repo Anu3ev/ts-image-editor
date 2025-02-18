@@ -19,14 +19,12 @@ import {
 /**
  * Методы для работы с канвасом
  * @param {Object} params
- * @param {Canvas} params.canvas - объект канваса
- * @param {Rect} params.montageArea - объект монтажной области
  * @param {Object} params.fabric - объект fabric
  * @param {Object} params.options - опции редактора
  *
  * @returns {Object} методы для работы с канвасом
  */
-export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
+export default ({ fabric, editorOptions }) => ({
   /**
    * Устанавливаем внутреннюю ширину канваса (для экспорта)
    * @param {String} width
@@ -36,38 +34,35 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
   setResolutionWidth(width, options = {}) {
     if (!width) return
 
-    const { preserveProportional } = options
-    const { width: montageAreaWidth, height: montageAreaHeight } = montageArea
+    const { preserveProportional, oldZoomValue } = options
+    const { width: montageAreaWidth, height: montageAreaHeight } = this.montageArea
 
     let adjustedWidth = width
     if (adjustedWidth < CANVAS_MIN_WIDTH) adjustedWidth = CANVAS_MIN_WIDTH
     if (adjustedWidth > CANVAS_MAX_WIDTH) adjustedWidth = CANVAS_MAX_WIDTH
 
-    canvas.lowerCanvasEl.width = adjustedWidth
+    // Сбрасываем зум, чтобы не было проблем с пересчетом размеров
+    const oldZoom = oldZoomValue ?? this.canvas.getZoom()
+    this.setZoom(1)
 
-    if (canvas.upperCanvasEl) {
-      canvas.upperCanvasEl.width = adjustedWidth
-    }
+    this.canvas.setDimensions({ width: adjustedWidth }, { backstoreOnly: true })
 
-    if (canvas.wrapperEl) {
-      canvas.wrapperEl.width = adjustedWidth
-    }
-
-    canvas.width = adjustedWidth
-
-    montageArea.width = adjustedWidth
-    canvas.clipPath.width = adjustedWidth
+    // Обновляем размеры montageArea и clipPath
+    this.montageArea.set({ width: adjustedWidth })
+    this.canvas.clipPath.set({ width: adjustedWidth })
 
     // Если нужно сохранить пропорции, вычисляем новую высоту
     if (preserveProportional) {
       const factor = adjustedWidth / montageAreaWidth
       const newHeight = montageAreaHeight * factor
+      this.setResolutionHeight(newHeight, { oldZoomValue: oldZoom })
 
-      this.setResolutionHeight(newHeight)
+      return
     }
 
-    // Центрируем clipPath и монтажную область относительно новых размеров
-    centerCanvas()
+    // Центрируем montageArea и clipPath
+    centerCanvas(this.canvas, this.montageArea)
+    this.setZoom(oldZoom)
   },
 
   /**
@@ -79,38 +74,36 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
   setResolutionHeight(height, options = {}) {
     if (!height) return
 
-    const { preserveProportional } = options
-    const { width: montageAreaWidth, height: montageAreaHeight } = montageArea
+    const { preserveProportional, oldZoomValue } = options
+    const { width: montageAreaWidth, height: montageAreaHeight } = this.montageArea
 
     let adjustedHeight = height
     if (adjustedHeight < CANVAS_MIN_HEIGHT) adjustedHeight = CANVAS_MIN_HEIGHT
     if (adjustedHeight > CANVAS_MAX_HEIGHT) adjustedHeight = CANVAS_MAX_HEIGHT
 
-    canvas.lowerCanvasEl.height = adjustedHeight
+    // Сбрасываем зум, чтобы не было проблем с пересчетом размеров
+    const oldZoom = oldZoomValue ?? this.canvas.getZoom()
+    this.setZoom(1)
 
-    if (canvas.upperCanvasEl) {
-      canvas.upperCanvasEl.height = adjustedHeight
-    }
+    this.canvas.setDimensions({ height: adjustedHeight }, { backstoreOnly: true })
 
-    if (canvas.wrapperEl) {
-      canvas.wrapperEl.height = adjustedHeight
-    }
-
-    canvas.height = adjustedHeight
-
-    montageArea.height = adjustedHeight
-    canvas.clipPath.height = adjustedHeight
+    // Обновляем размеры montageArea и clipPath
+    this.montageArea.set({ height: adjustedHeight })
+    this.canvas.clipPath.set({ height: adjustedHeight })
 
     // Если нужно сохранить пропорции, вычисляем новую ширину
     if (preserveProportional) {
       const factor = adjustedHeight / montageAreaHeight
       const newWidth = montageAreaWidth * factor
 
-      this.setResolutionWidth(newWidth)
+      this.setResolutionWidth(newWidth, { oldZoomValue: oldZoom })
+
+      return
     }
 
     // Центрируем clipPath и монтажную область относительно новых размеров
-    centerCanvas()
+    centerCanvas(this.canvas, this.montageArea)
+    this.setZoom(oldZoom)
   },
 
   /**
@@ -128,13 +121,13 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
 
     const { preserveProportional } = options
 
-    const { width: currentDisplayWidth, height: currentDisplayHeight } = canvas.lowerCanvasEl.style
+    const { width: currentDisplayWidth, height: currentDisplayHeight } = this.canvas.lowerCanvasEl.style
 
     const stringWidth = `${numericWidth}px`
 
-    canvas.lowerCanvasEl.style.width = stringWidth
-    canvas.upperCanvasEl.style.width = stringWidth
-    canvas.wrapperEl.style.width = stringWidth
+    this.canvas.lowerCanvasEl.style.width = stringWidth
+    this.canvas.upperCanvasEl.style.width = stringWidth
+    this.canvas.wrapperEl.style.width = stringWidth
     editorOptions.editorContainer.style.width = stringWidth
 
     // Если нужно сохранить пропорции, вычисляем новую высоту
@@ -146,7 +139,7 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
       this.setDisplayHeight(newHeight)
     }
 
-    canvas.fire('canvas:display-width-changed', { width })
+    this.canvas.fire('canvas:display-width-changed', { width })
   },
 
   /**
@@ -164,13 +157,13 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
 
     const { preserveProportional } = options
 
-    const { width: currentDisplayWidth, height: currentDisplayHeight } = canvas.lowerCanvasEl.style
+    const { width: currentDisplayWidth, height: currentDisplayHeight } = this.canvas.lowerCanvasEl.style
 
     const stringHeight = `${numericHeight}px`
 
-    canvas.lowerCanvasEl.style.height = stringHeight
-    canvas.upperCanvasEl.style.height = stringHeight
-    canvas.wrapperEl.style.height = stringHeight
+    this.canvas.lowerCanvasEl.style.height = stringHeight
+    this.canvas.upperCanvasEl.style.height = stringHeight
+    this.canvas.wrapperEl.style.height = stringHeight
     editorOptions.editorContainer.style.height = stringHeight
 
     // Если нужно сохранить пропорции, вычисляем новую высоту
@@ -181,7 +174,7 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
       this.setDisplayWidth(newHeight)
     }
 
-    canvas.fire('canvas:display-height-changed', { height })
+    this.canvas.fire('canvas:display-height-changed', { height })
   },
 
   /**
@@ -200,20 +193,20 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
     try {
       const img = await fabric.FabricImage.fromURL(url)
 
-      const canvasWidth = canvas.getWidth()
-      const canvasHeight = canvas.getHeight()
+      const canvasWidth = this.canvas.getWidth()
+      const canvasHeight = this.canvas.getHeight()
 
       const { width: imageWidth, height: imageHeight } = img
 
       if (scale === 'scale-canvas') {
-        const multiplier = calculateCanvasMultiplier({ montageArea, imageObject: img })
+        const multiplier = calculateCanvasMultiplier({ montageArea: this.montageArea, imageObject: img })
 
         // Если multiplier больше 1, то изображение больше канваса по хотя бы одной оси
         if (multiplier > 1) {
           this.scaleCanvas({ object: img })
         }
       } else {
-        const scaleFactor = calculateScaleFactor({ montageArea, imageObject: img, scaleType: scale })
+        const scaleFactor = calculateScaleFactor({ montageArea: this.montageArea, imageObject: img, scaleType: scale })
 
         if (scale === 'image-contain' && scaleFactor < 1) {
           this.imageFit({ object: img, type: 'contain' })
@@ -226,10 +219,10 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
       }
 
       // Добавляем изображение, центрируем его и перерисовываем канвас
-      canvas.add(img)
-      canvas.setActiveObject(img)
-      canvas.centerObject(img)
-      canvas.renderAll()
+      this.canvas.add(img)
+      this.canvas.setActiveObject(img)
+      this.canvas.centerObject(img)
+      this.canvas.renderAll()
     } catch (error) {
       console.error('importImage error: ', error)
     }
@@ -246,15 +239,15 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
   imageFit(options = {}) {
     const { object, type = editorOptions.scaleType } = options
 
-    const image = object || canvas.getActiveObject()
+    const image = object || this.canvas.getActiveObject()
 
     if (image?.type !== 'image') return
 
-    const scaleFactor = calculateScaleFactor({ montageArea, imageObject: image, scaleType: type })
+    const scaleFactor = calculateScaleFactor({ montageArea: this.montageArea, imageObject: image, scaleType: type })
 
     image.scale(scaleFactor)
-    canvas.centerObject(image)
-    canvas.renderAll()
+    this.canvas.centerObject(image)
+    this.canvas.renderAll()
   },
 
   /**
@@ -263,7 +256,7 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
    * @returns
    */
   resetObject(object) {
-    const currentObject = object || canvas.getActiveObject()
+    const currentObject = object || this.canvas.getActiveObject()
 
     if (!currentObject) return
 
@@ -276,17 +269,17 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
         angle: 0
       })
 
-      canvas.centerObject(currentObject)
-      canvas.renderAll()
+      this.canvas.centerObject(currentObject)
+      this.canvas.renderAll()
     }
 
-    const canvasWidth = canvas.getWidth()
-    const canvasHeight = canvas.getHeight()
+    const canvasWidth = this.canvas.getWidth()
+    const canvasHeight = this.canvas.getHeight()
 
     const { width: imageWidth, height: imageHeight } = currentObject
 
     const scaleFactor = calculateScaleFactor({
-      montageArea,
+      montageArea: this.montageArea,
       imageObject: currentObject,
       scaleType: editorOptions.scaleType
     })
@@ -310,8 +303,8 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
       angle: 0
     })
 
-    canvas.centerObject(currentObject)
-    canvas.renderAll()
+    this.canvas.centerObject(currentObject)
+    this.canvas.renderAll()
   },
 
   /**
@@ -322,7 +315,7 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
   scaleCanvas(options = {}) {
     const { object } = options
 
-    const image = object || canvas.getActiveObject()
+    const image = object || this.canvas.getActiveObject()
 
     if (!image || image.type !== 'image') return
 
@@ -339,7 +332,7 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
       return
     }
 
-    const { width: montageAreaWidth, height: montageAreaHeight } = montageArea
+    const { width: montageAreaWidth, height: montageAreaHeight } = this.montageArea
 
     const widthMultiplier = imageWidth / montageAreaWidth
     const heightMultiplier = imageHeight / montageAreaHeight
@@ -354,8 +347,8 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
     this.setResolutionHeight(newCanvasHeight)
     this.resetObject(image)
 
-    canvas.centerObject(image)
-    canvas.renderAll()
+    this.canvas.centerObject(image)
+    this.canvas.renderAll()
   },
 
   /**
@@ -367,26 +360,26 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
  */
   async exportImageFile(fileName = nanoid(), contentType = 'image/png') {
   // Сброс активного объекта и ререндер
-    canvas.discardActiveObject()
-    canvas.renderAll()
+    this.canvas.discardActiveObject()
+    this.canvas.renderAll()
 
     // Сохраняем текущий viewportTransform (матрицу масштабирования и сдвига)
-    const savedTransform = canvas.viewportTransform.slice()
+    const savedTransform = this.canvas.viewportTransform.slice()
 
     // Сбрасываем viewportTransform до идентичной матрицы,
     // чтобы экспортировать содержимое в координатах канваса без зума
-    canvas.viewportTransform = [1, 0, 0, 1, 0, 0]
-    canvas.renderAll()
+    this.canvas.viewportTransform = [1, 0, 0, 1, 0, 0]
+    this.canvas.renderAll()
 
     // Получаем координаты монтажной области.
     // Предполагаем, что montageArea – это объект, добавленный на канвас,
     // с его собственными координатами left, top, width и height.
-    const { left, top, width, height } = montageArea
+    const { left, top, width, height } = this.montageArea
 
-    montageArea.visible = false
+    this.montageArea.visible = false
 
     // Вызываем toDataURL с указанием нужной области.
-    const dataUrl = canvas.toDataURL({
+    const dataUrl = this.canvas.toDataURL({
       format: contentType.split('/')[1], // например, 'png'
       left,
       top,
@@ -395,9 +388,9 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
     })
 
     // Восстанавливаем сохранённый viewportTransform и заливку для монтажной области
-    canvas.viewportTransform = savedTransform
-    montageArea.visible = true
-    canvas.renderAll()
+    this.canvas.viewportTransform = savedTransform
+    this.montageArea.visible = true
+    this.canvas.renderAll()
 
     // Преобразуем dataUrl в Blob и затем в File
     const blob = await (await fetch(dataUrl)).blob()
@@ -408,43 +401,43 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
    * Группировка объектов
    */
   group() {
-    const activeObject = canvas.getActiveObject()
+    const activeObject = this.canvas.getActiveObject()
     if (!activeObject) return
 
     if (activeObject.type !== 'activeSelection' && activeObject.type !== 'activeselection') {
       return
     }
 
-    const group = new fabric.Group(canvas.getActiveObject().removeAll())
-    canvas.add(group)
-    canvas.setActiveObject(group)
-    canvas.renderAll()
+    const group = new fabric.Group(this.canvas.getActiveObject().removeAll())
+    this.canvas.add(group)
+    this.canvas.setActiveObject(group)
+    this.canvas.renderAll()
   },
 
   /**
    * Разгруппировка объектов
    */
   ungroup(obj) {
-    const group = obj || canvas.getActiveObject()
+    const group = obj || this.canvas.getActiveObject()
 
     if (!group || group.type !== 'group') {
       return
     }
 
-    canvas.remove(group)
+    this.canvas.remove(group)
     const sel = new fabric.ActiveSelection(group.removeAll(), {
-      canvas
+      canvas: this.canvas
     })
 
-    canvas.setActiveObject(sel)
-    canvas.renderAll()
+    this.canvas.setActiveObject(sel)
+    this.canvas.renderAll()
   },
 
   /**
    * Удалить выбранный объект
    */
   deleteSelectedObjects() {
-    const activeObjects = canvas.getActiveObjects()
+    const activeObjects = this.canvas.getActiveObjects()
 
     if (!activeObjects || !activeObjects.length) return
 
@@ -456,11 +449,27 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
         return
       }
 
-      canvas.remove(obj)
+      this.canvas.remove(obj)
     })
 
-    canvas.discardActiveObject()
-    canvas.renderAll()
+    this.canvas.discardActiveObject()
+    this.canvas.renderAll()
+  },
+
+  saveState() {
+    const { undoStack, maxHistoryLength } = this.history
+
+    this.history.redoStack = []
+    // Получаем текущее состояние канваса и сериализуем его в строку
+    const state = JSON.stringify(this.canvas.toJSON())
+    undoStack.push(state)
+
+    // Ограничиваем длину истории
+    if (undoStack.length > maxHistoryLength) {
+      undoStack.shift()
+    }
+
+    console.log('Состояние сохранено. undoStack:', undoStack.length)
   },
 
   /**
@@ -468,7 +477,7 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
    * TODO: Полностью удаляет всё, в том числе монтажную область
    */
   clearCanvas() {
-    canvas.clear()
+    this.canvas.clear()
   },
 
   /**
@@ -476,19 +485,19 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
    * TODO: Выделяет всё, в том числе монтажную область
    */
   selectAll() {
-    canvas.discardActiveObject()
-    const sel = new fabric.ActiveSelection(canvas.getObjects(), {
-      canvas
+    this.canvas.discardActiveObject()
+    const sel = new fabric.ActiveSelection(this.canvas.getObjects(), {
+      canvas: this.canvas
     })
-    canvas.setActiveObject(sel)
-    canvas.requestRenderAll()
+    this.canvas.setActiveObject(sel)
+    this.canvas.requestRenderAll()
   },
 
   /**
    * Копирование объекта
    */
   async copy() {
-    const activeObject = canvas.getActiveObject()
+    const activeObject = this.canvas.getActiveObject()
     if (!activeObject) return
 
     const clonedObject = await activeObject.clone()
@@ -523,7 +532,7 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
 
     // clone again, so you can do multiple copies.
     const clonedObj = await this.clipboard.clone()
-    canvas.discardActiveObject()
+    this.canvas.discardActiveObject()
     clonedObj.set({
       left: clonedObj.left + 10,
       top: clonedObj.top + 10,
@@ -531,19 +540,19 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
     })
     if (clonedObj instanceof fabric.ActiveSelection) {
       // active selection needs a reference to the canvas.
-      clonedObj.canvas = canvas
+      clonedObj.canvas = this.canvas
       clonedObj.forEachObject((obj) => {
-        canvas.add(obj)
+        this.canvas.add(obj)
       })
       // this should solve the unselectability
       clonedObj.setCoords()
     } else {
-      canvas.add(clonedObj)
+      this.canvas.add(clonedObj)
     }
     this.clipboard.top += 10
     this.clipboard.left += 10
-    canvas.setActiveObject(clonedObj)
-    canvas.requestRenderAll()
+    this.canvas.setActiveObject(clonedObj)
+    this.canvas.requestRenderAll()
   },
 
   /**
@@ -558,20 +567,44 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
   zoom(scale = DEFAULT_ZOOM_RATIO, options = {}) {
     if (!scale) return
 
-    const currentZoom = canvas.getZoom()
-    const pointX = options.pointX ?? canvas.getWidth() / 2
-    const pointY = options.pointY ?? canvas.getHeight() / 2
+    const currentZoom = this.canvas.getZoom()
+    const pointX = options.pointX ?? this.canvas.getWidth() / 2
+    const pointY = options.pointY ?? this.canvas.getHeight() / 2
 
     let zoom = currentZoom + Number(scale)
 
     if (zoom > MAX_ZOOM_RATIO) zoom = MAX_ZOOM_RATIO
     if (zoom < MIN_ZOOM_RATIO) zoom = MIN_ZOOM_RATIO
 
-    canvas.zoomToPoint({ x: Number(pointX), y: Number(pointY) }, zoom)
+    this.canvas.zoomToPoint({ x: Number(pointX), y: Number(pointY) }, zoom)
 
-    canvas.fire('canvas:zoom-changed', {
-      currentZoom: canvas.getZoom(),
+    this.canvas.fire('canvas:zoom-changed', {
+      currentZoom: this.canvas.getZoom(),
       zoom,
+      pointX,
+      pointY
+    })
+  },
+
+  /**
+   * Установка зума
+   * @param {Number} zoom - Зум
+   * @fires canvas:zoom-changed
+   */
+  setZoom(zoom = editorOptions.defaultScale) {
+    const pointX = this.canvas.getWidth() / 2
+    const pointY = this.canvas.getHeight() / 2
+
+    let newZoom = zoom
+
+    if (zoom > MAX_ZOOM_RATIO) newZoom = MAX_ZOOM_RATIO
+    if (zoom < MIN_ZOOM_RATIO) newZoom = MIN_ZOOM_RATIO
+
+    this.canvas.zoomToPoint({ x: Number(pointX), y: Number(pointY) }, newZoom)
+
+    this.canvas.fire('canvas:zoom-changed', {
+      currentZoom: this.canvas.getZoom(),
+      zoom: newZoom,
       pointX,
       pointY
     })
@@ -582,14 +615,14 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
    * @fires canvas:zoom-changed
    */
   resetZoom() {
-    const pointX = canvas.getWidth() / 2
-    const pointY = canvas.getHeight() / 2
+    const pointX = this.canvas.getWidth() / 2
+    const pointY = this.canvas.getHeight() / 2
 
     const { defaultScale = 1 } = editorOptions
 
-    canvas.zoomToPoint({ x: Number(pointX), y: Number(pointY) }, defaultScale)
+    this.canvas.zoomToPoint({ x: Number(pointX), y: Number(pointY) }, defaultScale)
 
-    canvas.fire('canvas:zoom-changed', { currentZoom: canvas.getZoom() })
+    this.canvas.fire('canvas:zoom-changed', { currentZoom: this.canvas.getZoom() })
   },
 
   /**
@@ -600,8 +633,8 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
     this.setResolutionWidth(editorOptions.width)
     this.setResolutionHeight(editorOptions.height)
     this.resetObject()
-    centerCanvas()
-    canvas.renderAll()
+    centerCanvas(this.canvas, this.montageArea)
+    this.canvas.renderAll()
   },
 
   /**
@@ -609,26 +642,27 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
    * @param {fabric.Object} object
    */
   bringToFront(object) {
-    const activeObject = object || canvas.getActiveObject()
+    const activeObject = object || this.canvas.getActiveObject()
 
     if (!activeObject) return
 
-    canvas.bringObjectToFront(activeObject)
-    canvas.renderAll()
+    this.canvas.bringObjectToFront(activeObject)
+    this.canvas.renderAll()
   },
 
   /**
   * Отправить объект на задний план по оси Z
   * @param {fabric.Object} object
+  * TODO: Отправляет объект под монтахную область
   */
   sendToBack(object) {
-    const activeObject = object || canvas.getActiveObject()
+    const activeObject = object || this.canvas.getActiveObject()
 
     if (!activeObject) return
 
-    canvas.sendObjectToBack(activeObject)
-    canvas.discardActiveObject()
-    canvas.renderAll()
+    this.canvas.sendObjectToBack(activeObject)
+    this.canvas.discardActiveObject()
+    this.canvas.renderAll()
   },
 
   // TODO: Проверить что работает
@@ -645,7 +679,7 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
       absolutePositioned: true // Чтобы учитывались координаты именно канвы, а не локальные
     })
 
-    canvas.renderAll()
+    this.canvas.renderAll()
   },
 
   // TODO: Проверить что работает
@@ -677,7 +711,7 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
     const dataURL = tempCanvas.toDataURL()
 
     // 3. Удаляем старый объект из canvas
-    canvas.remove(imageObj)
+    this.canvas.remove(imageObj)
 
     // 4. Создаём новый объект из dataURL
     fabric.FabricImage.fromURL(dataURL, (croppedImg) => {
@@ -685,16 +719,16 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
         left: imageObj.left,
         top: imageObj.top
       })
-      canvas.add(croppedImg)
-      canvas.renderAll()
+      this.canvas.add(croppedImg)
+      this.canvas.renderAll()
     })
   },
 
   // TODO: Проверить что работает
   addText(text) {
     const textObj = new fabric.FabricText(text, { left: 100, top: 100 })
-    canvas.add(textObj)
-    canvas.renderAll()
+    this.canvas.add(textObj)
+    this.canvas.renderAll()
   },
 
   // Ещё один вариант
@@ -718,8 +752,8 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
         top: 100
         // можно что-то поднастроить...
       })
-      canvas.add(img)
-      canvas.renderAll()
+      this.canvas.add(img)
+      this.canvas.renderAll()
     })
   },
 
@@ -736,33 +770,33 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
    * @param {number} angle
    */
   rotate(angle = ROTATE_RATIO) {
-    const obj = canvas.getActiveObject()
+    const obj = this.canvas.getActiveObject()
     if (!obj) return
     const newAngle = obj.angle + angle
     obj.rotate(newAngle)
     obj.setCoords()
 
-    canvas.renderAll()
+    this.canvas.renderAll()
   },
 
   /**
    * Отразить по горизонтали
    */
   flipX() {
-    const obj = canvas.getActiveObject()
+    const obj = this.canvas.getActiveObject()
     if (!obj) return
     obj.flipX = !obj.flipX
-    canvas.renderAll()
+    this.canvas.renderAll()
   },
 
   /**
    * Отразить по вертикали
    */
   flipY() {
-    const obj = canvas.getActiveObject()
+    const obj = this.canvas.getActiveObject()
     if (!obj) return
     obj.flipY = !obj.flipY
-    canvas.renderAll()
+    this.canvas.renderAll()
   },
 
   // TODO: Проверить что работает
@@ -783,7 +817,7 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
       ]
     })
     object.set('fill', gradient)
-    canvas.renderAll()
+    this.canvas.renderAll()
 
     // Для тени
     // object.setShadow({
@@ -792,19 +826,19 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
     //   offsetX: 5,
     //   offsetY: 5
     // });
-    // canvas.renderAll();
+    // this.canvas.renderAll();
   },
 
   // TODO: Проверить что работает
   applyBrightness() {
-    const obj = canvas.getActiveObject()
+    const obj = this.canvas.getActiveObject()
     if (!obj || obj.type !== 'image') return
     const brightnessFilter = new fabric.fabricImage.filters.Brightness({
       brightness: 0.2
     })
     obj.filters[0] = brightnessFilter
     obj.applyFilters()
-    canvas.renderAll()
+    this.canvas.renderAll()
   },
 
   // Предположим, у нас есть imageObj, который является fabricImage
@@ -816,7 +850,7 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
   //   // Массив filters у объекта - туда можно добавить несколько фильтров
   //   imageObj.filters[0] = brightnessFilter;
   //   imageObj.applyFilters();
-  //   canvas.renderAll();
+  //   this.canvas.renderAll();
   // }
 
   // TODO: Проверить что работает
@@ -826,29 +860,29 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
     })
     imageObj.filters.push(saturationFilter)
     imageObj.applyFilters()
-    canvas.renderAll()
+    this.canvas.renderAll()
   },
 
   // TODO: Проверить что работает
   removeFilter() {
-    const obj = canvas.getActiveObject()
+    const obj = this.canvas.getActiveObject()
     if (!obj || obj.type !== 'image') return
     obj.filters = []
     obj.applyFilters()
-    canvas.renderAll()
+    this.canvas.renderAll()
   },
 
   // TODO: Проверить что работает
   setDrawingModeOn() {
-    canvas.freeDrawingBrush = new fabric.fabricPencilBrush(canvas)
-    canvas.isDrawingMode = true
-    canvas.freeDrawingBrush.color = '#ff0000'
-    canvas.freeDrawingBrush.width = 5
+    this.canvas.freeDrawingBrush = new fabric.fabricPencilBrush(this.canvas)
+    this.canvas.isDrawingMode = true
+    this.canvas.freeDrawingBrush.color = '#ff0000'
+    this.canvas.freeDrawingBrush.width = 5
   },
 
   // TODO: Проверить что работает
   setDrawingModeOff() {
-    canvas.isDrawingMode = false
+    this.canvas.isDrawingMode = false
   },
 
   /**
@@ -877,14 +911,14 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
       height
     })
 
-    canvas.add(rect)
+    this.canvas.add(rect)
 
     if (!left && !top) {
-      canvas.centerObject(rect)
+      this.canvas.centerObject(rect)
     }
 
-    canvas.setActiveObject(rect)
-    canvas.renderAll()
+    this.canvas.setActiveObject(rect)
+    this.canvas.renderAll()
   },
 
   /**
@@ -911,12 +945,12 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
     })
 
     if (!left && !top) {
-      canvas.centerObject(circle)
+      this.canvas.centerObject(circle)
     }
 
-    canvas.add(circle)
-    canvas.setActiveObject(circle)
-    canvas.renderAll()
+    this.canvas.add(circle)
+    this.canvas.setActiveObject(circle)
+    this.canvas.renderAll()
   },
 
   /**
@@ -946,11 +980,11 @@ export default ({ canvas, montageArea, fabric, options: editorOptions }) => ({
     })
 
     if (!left && !top) {
-      canvas.centerObject(triangle)
+      this.canvas.centerObject(triangle)
     }
 
-    canvas.add(triangle)
-    canvas.setActiveObject(triangle)
-    canvas.renderAll()
+    this.canvas.add(triangle)
+    this.canvas.setActiveObject(triangle)
+    this.canvas.renderAll()
   }
 })

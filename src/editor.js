@@ -30,6 +30,14 @@ class ImageEditor {
   constructor(canvasId, options = {}) {
     this.canvas = new fabric.Canvas(canvasId, options)
 
+    this.clipboard = null
+
+    this.history = {
+      undoStack: [],
+      redoStack: [],
+      maxHistoryLength: 50
+    }
+
     this.montageArea = new fabric.Rect({
       width: options.width,
       height: options.height,
@@ -53,17 +61,14 @@ class ImageEditor {
     })
 
     this.canvas.clipPath = montageAreaClip
-    this.canvas.renderAll()
 
-    this.clipboard = null
+    this.canvas.renderAll()
 
     Object.assign(
       this,
       methods({
-        canvas: this.canvas,
-        montageArea: this.montageArea,
         fabric,
-        options
+        editorOptions: options
       })
     )
 

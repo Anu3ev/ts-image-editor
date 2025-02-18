@@ -15,7 +15,7 @@ export default {
   // Кастомные опции
   bringToFrontOnSelection: true,
   mouseWheelZooming: true,
-  canvasDragging: true,
+  canvasDragging: false,
   copyObjectsByHotkey: true,
   pasteImageFromClipboard: true,
 

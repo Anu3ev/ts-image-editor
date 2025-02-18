@@ -76,5 +76,7 @@ export function centerCanvas(canvas, montageArea) {
   canvas.centerObject(montageArea)
   canvas.centerObject(canvas.clipPath)
   montageArea.setCoords()
+  canvas.calcOffset()
+
   canvas.renderAll()
 }
