@@ -56,6 +56,39 @@ class Listeners {
     if (pasteImageFromClipboard) {
       this.enablePasteImageFromClipboard()
     }
+
+    this.initHistoryStateListeners()
+  }
+
+  initHistoryStateListeners() {
+    // Сохраняем состояние при изменении объектов.
+    // Используем debounce для уменьшения количества сохранений.
+    this.canvas.on('object:modified', this.editor.debounce(() => {
+      console.log('object:modified')
+      this.editor.saveState()
+    }, 300))
+
+    this.canvas.on('object:rotating', this.editor.debounce(() => {
+      console.log('object:rotating')
+      this.editor.saveState()
+    }, 300))
+
+    // Сохраняем состояние при добавлении объекта.
+    this.canvas.on('object:added', (e) => {
+      if (this.editor.isLoading) return
+
+      console.log('object:added')
+      // Исключаем добавление объекта в процессе загрузки состояния
+      this.editor.saveState()
+    })
+
+    // Если требуется, можно также отслеживать удаление объектов:
+    this.canvas.on('object:removed', () => {
+      if (this.editor.isLoading) return
+
+      console.log('object:removed')
+      this.editor.saveState()
+    })
   }
 
   /**

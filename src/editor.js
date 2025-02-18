@@ -28,6 +28,7 @@ import {
  */
 class ImageEditor {
   constructor(canvasId, options = {}) {
+    this.isLoading = false
     this.canvas = new fabric.Canvas(canvasId, options)
 
     this.clipboard = null
@@ -77,6 +78,8 @@ class ImageEditor {
     this.setDisplayWidth(options.displayWidth)
     this.setDisplayHeight(options.displayHeight)
     this.setDefaultScale()
+
+    this.saveState()
   }
 }
 

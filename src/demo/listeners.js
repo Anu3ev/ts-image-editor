@@ -49,6 +49,9 @@ import {
   addRectBtn,
   addCircleBtn,
   addTriangleBtn,
+  // Undo/Redo
+  undoBtn,
+  redoBtn
 } from './elements.js'
 
 import {
@@ -192,6 +195,16 @@ export default (editorInstance) => {
   // Добавление треугольника
   addTriangleBtn.addEventListener('click', () => {
     editorInstance.addTriangle()
+  })
+
+  // Undo
+  undoBtn.addEventListener('click', () => {
+    editorInstance.undo()
+  })
+
+  // Redo
+  redoBtn.addEventListener('click', () => {
+    editorInstance.redo()
   })
 
   // Отображение разрешения канваса

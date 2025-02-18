@@ -64,3 +64,7 @@ export const currentObjectDataNode = document.getElementById('current-object-dat
 export const addRectBtn = document.getElementById('add-rect-btn')
 export const addCircleBtn = document.getElementById('add-circle-btn')
 export const addTriangleBtn = document.getElementById('add-triangle-btn')
+
+// State controls
+export const undoBtn = document.getElementById('undo-btn')
+export const redoBtn = document.getElementById('redo-btn')

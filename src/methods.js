@@ -457,11 +457,18 @@ export default ({ fabric, editorOptions }) => ({
   },
 
   saveState() {
+    if (this.isLoading) return
+
     const { undoStack, maxHistoryLength } = this.history
 
     this.history.redoStack = []
     // Получаем текущее состояние канваса и сериализуем его в строку
-    const state = JSON.stringify(this.canvas.toJSON())
+    let time = performance.now()
+
+    const state = JSON.stringify(this.canvas.toDatalessJSON(['selectable', 'evented']))
+
+    time = performance.now() - time
+    console.log('Время выполнения = ', time)
     undoStack.push(state)
 
     // Ограничиваем длину истории
@@ -469,7 +476,84 @@ export default ({ fabric, editorOptions }) => ({
       undoStack.shift()
     }
 
-    console.log('Состояние сохранено. undoStack:', undoStack.length)
+    console.log('Состояние сохранено. undoStack:', undoStack, undoStack.length)
+  },
+
+  // Функция загрузки состояния в канвас
+  async loadState(state) {
+    if (!state) return
+
+    console.log('state', state)
+    this.isLoading = true
+    await this.canvas.loadFromJSON(state)
+    this.canvas.renderAll()
+    this.isLoading = false
+    console.log('state loaded')
+  },
+
+  // Undo – отмена последнего действия
+  undo() {
+    const { undoStack, redoStack } = this.history
+
+    // Если в стеке больше одного состояния (начальное состояние тоже сохраняется)
+
+    console.log('undoStack?.length', undoStack?.length)
+    if (undoStack?.length <= 1) {
+      console.log('Нет предыдущих состояний для отмены.')
+
+      return
+    }
+
+    // Сохраняем текущее состояние в redo-стеке
+    const currentState = undoStack.pop()
+    redoStack.push(currentState)
+    console.log('undo currentState', currentState)
+
+    // Восстанавливаем предыдущее состояние
+    const previousState = undoStack[undoStack.length - 1]
+
+    if (!previousState) {
+      console.log('Нет предыдущих состояний для отмены.', previousState)
+
+      return
+    }
+
+    this.loadState(previousState)
+    console.log('Undo. undoStack:', undoStack.length, 'redoStack:', redoStack.length)
+  },
+
+  // Redo – повтор ранее отменённого действия
+  async redo() {
+    const { undoStack, redoStack } = this.history
+
+    if (!redoStack?.length) {
+      console.log('Нет состояний для повтора.')
+      return
+    }
+
+    // Извлекаем состояние из redoStack, которое содержит картинку
+    const state = redoStack.pop()
+    console.log('redo call redoStack', redoStack)
+
+    // Загружаем извлечённое состояние, и после загрузки добавляем его в undoStack
+    await this.loadState(state)
+
+    // После успешной загрузки сохраняем состояние с картинкой
+    undoStack.push(state)
+    console.log('Redo. undoStack:', undoStack.length, 'redoStack:', redoStack.length)
+  },
+
+  // Дебаунс для снижения частоты сохранения состояния
+  debounce(fn, delay) {
+    let timer = null
+
+    return function(...args) {
+      const context = this
+      clearTimeout(timer)
+      timer = setTimeout(() => {
+        fn.apply(context, args)
+      }, delay)
+    }
   },
 
   /**
@@ -893,6 +977,8 @@ export default ({ fabric, editorOptions }) => ({
    * @param {Number} options.width - Ширина
    * @param {Number} options.height - Высота
    * @param {String} options.color - Цвет
+   * @param {String} options.originX - Ориентация по X
+   * @param {String} options.originY - Ориентация по Y
    */
   addRectangle(options = {}) {
     const {
@@ -900,7 +986,9 @@ export default ({ fabric, editorOptions }) => ({
       top,
       width = 100,
       height = 100,
-      color = 'blue'
+      color = 'blue',
+      originX = 'center',
+      originY = 'center'
     } = options
 
     const rect = new fabric.Rect({
@@ -908,15 +996,16 @@ export default ({ fabric, editorOptions }) => ({
       top,
       fill: color,
       width,
-      height
+      height,
+      originX,
+      originY
     })
-
-    this.canvas.add(rect)
 
     if (!left && !top) {
       this.canvas.centerObject(rect)
     }
 
+    this.canvas.add(rect)
     this.canvas.setActiveObject(rect)
     this.canvas.renderAll()
   },
@@ -928,20 +1017,26 @@ export default ({ fabric, editorOptions }) => ({
    * @param {Number} options.top - Координата Y
    * @param {Number} options.radius - Радиус
    * @param {String} options.color - Цвет
+   * @param {String} options.originX - Ориентация по X
+   * @param {String} options.originY - Ориентация по Y
    */
   addCircle(options = {}) {
     const {
       left,
       top,
       radius = 50,
-      color = 'green'
+      color = 'green',
+      originX = 'center',
+      originY = 'center'
     } = options
 
     const circle = new fabric.Circle({
       left,
       top,
       fill: color,
-      radius
+      radius,
+      originX,
+      originY
     })
 
     if (!left && !top) {
@@ -961,6 +1056,8 @@ export default ({ fabric, editorOptions }) => ({
    * @param {Number} options.width - Ширина
    * @param {Number} options.height - Высота
    * @param {String} options.color - Цвет
+   * @param {String} options.originX - Ориентация по X
+   * @param {String} options.originY - Ориентация по Y
    */
   addTriangle(options = {}) {
     const {
@@ -968,6 +1065,8 @@ export default ({ fabric, editorOptions }) => ({
       top,
       width = 100,
       height = 100,
+      originX = 'center',
+      originY = 'center',
       color = 'yellow'
     } = options
 
@@ -976,7 +1075,9 @@ export default ({ fabric, editorOptions }) => ({
       top,
       fill: color,
       width,
-      height
+      height,
+      originX,
+      originY
     })
 
     if (!left && !top) {
