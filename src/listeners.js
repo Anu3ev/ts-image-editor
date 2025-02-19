@@ -135,23 +135,33 @@ class Listeners {
     const { items } = clipboardData
     const lastItem = items[items.length - 1]
 
-    // Если это объект редактора и не изображение, то вставляем его как есть
-    if (lastItem.type.indexOf('image') === -1) {
-      this.editor.paste()
+    if (lastItem.type.indexOf('image') !== -1) {
+      const blob = lastItem.getAsFile()
+      if (!blob) return
 
+      const reader = new FileReader()
+      reader.onload = (f) => {
+        this.editor.importImage({ url: f.target.result })
+      }
+      reader.readAsDataURL(blob)
       return
     }
 
-    const blob = lastItem.getAsFile()
-    if (!blob) return
+    // Если прямого image нет, проверяем данные HTML
+    const htmlData = clipboardData.getData('text/html')
 
-    const reader = new FileReader()
+    if (htmlData) {
+      const parser = new DOMParser()
+      const doc = parser.parseFromString(htmlData, 'text/html')
+      const img = doc.querySelector('img')
 
-    reader.onload = (f) => {
-      this.editor.importImage({ url: f.target.result })
+      if (img && img.src) {
+        this.editor.importImage({ url: img.src })
+        return
+      }
     }
 
-    reader.readAsDataURL(blob)
+    this.editor.paste()
   }
 
   /**
