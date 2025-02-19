@@ -61,7 +61,7 @@ class Listeners {
   }
 
   initHistoryStateListeners() {
-    // Сохраняем состояние при изменении объектов.
+    // Сохраняем состояние при добавлении, изменении, удалении объектов.
     // Используем debounce для уменьшения количества сохранений.
     this.canvas.on('object:modified', this.editor.debounce(() => {
       console.log('object:modified')
@@ -73,16 +73,13 @@ class Listeners {
       this.editor.saveState()
     }, 300))
 
-    // Сохраняем состояние при добавлении объекта.
     this.canvas.on('object:added', (e) => {
       if (this.editor.isLoading) return
 
       console.log('object:added')
-      // Исключаем добавление объекта в процессе загрузки состояния
       this.editor.saveState()
     })
 
-    // Если требуется, можно также отслеживать удаление объектов:
     this.canvas.on('object:removed', () => {
       if (this.editor.isLoading) return
 
@@ -155,7 +152,7 @@ class Listeners {
       const doc = parser.parseFromString(htmlData, 'text/html')
       const img = doc.querySelector('img')
 
-      if (img && img.src) {
+      if (img?.src) {
         this.editor.importImage({ url: img.src })
         return
       }
