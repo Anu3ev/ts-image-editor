@@ -435,7 +435,13 @@ export default ({ fabric, editorOptions }) => ({
    * @param {string} contentType
    * @returns {Promise<File>}
    */
-  async exportImageFile(fileName = nanoid(), contentType = 'image/png') {
+  async exportCanvasAsImageFile(options = {}) {
+    const {
+      fileName = 'image.png',
+      contentType = 'image/png',
+      exportAsBase64 = false
+    } = options
+
     // Сброс активного объекта и ререндер
     this.canvas.discardActiveObject()
     this.canvas.renderAll()
@@ -443,8 +449,7 @@ export default ({ fabric, editorOptions }) => ({
     // Сохраняем текущий viewportTransform (матрицу масштабирования и сдвига)
     const savedTransform = this.canvas.viewportTransform.slice()
 
-    // Сбрасываем viewportTransform до идентичной матрицы,
-    // чтобы экспортировать содержимое в координатах канваса без зума
+    // Сбрасываем viewportTransform, чтобы экспортировать содержимое в координатах канваса без зума
     this.canvas.viewportTransform = [1, 0, 0, 1, 0, 0]
 
     this.canvas.renderAll()
@@ -456,7 +461,7 @@ export default ({ fabric, editorOptions }) => ({
 
     // Вызываем toDataURL с указанием нужной области.
     const dataUrl = this.canvas.toDataURL({
-      format: contentType.split('/')[1], // например, 'png'
+      format: contentType.split('/')[1],
       left,
       top,
       width,
@@ -467,6 +472,43 @@ export default ({ fabric, editorOptions }) => ({
     this.canvas.viewportTransform = savedTransform
     this.montageArea.visible = true
     this.canvas.renderAll()
+
+    if (exportAsBase64) return dataUrl
+
+    // Преобразуем dataUrl в Blob и затем в File
+    const blob = await (await fetch(dataUrl)).blob()
+    return new File([blob], fileName, { type: contentType })
+  },
+
+  /**
+   * Экспорт выбранного объекта в base64
+   * @param {Object} object - объект для экспорта
+   * @param {Object} options - опции
+   * @param {String} options.contentType - тип контента
+   * @returns {String} base64
+   * @fires editor:object-exported
+   */
+  async exportObjectAsImageFile(object, options = {}) {
+    const activeObject = object || this.canvas.getActiveObject()
+
+    if (!activeObject) {
+      console.error('exportObjectAsDataURL: No active object')
+
+      return ''
+    }
+
+    const {
+      fileName = 'image.png',
+      contentType = 'image/png',
+      exportAsBase64 = false
+    } = options
+
+    // Вызываем toDataURL с указанием нужной области.
+    const dataUrl = await activeObject.toDataURL({
+      format: contentType.split('/')[1]
+    })
+
+    if (exportAsBase64) return dataUrl
 
     // Преобразуем dataUrl в Blob и затем в File
     const blob = await (await fetch(dataUrl)).blob()
