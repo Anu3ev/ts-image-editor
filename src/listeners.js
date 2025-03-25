@@ -30,7 +30,8 @@ class Listeners {
       mouseWheelZooming,
       bringToFrontOnSelection,
       copyObjectsByHotkey,
-      pasteImageFromClipboard
+      pasteImageFromClipboard,
+      undoRedoByHotKeys
     } = this.options
 
     // Перетаскивание канваса
@@ -56,6 +57,10 @@ class Listeners {
     // Вставка изображения из буфера обмена сочетанием клавиш
     if (pasteImageFromClipboard) {
       this.enablePasteImageFromClipboard()
+    }
+
+    if (undoRedoByHotKeys) {
+      this.enableUndoRedoByHotKeys()
     }
 
     this.initHistoryStateListeners()
@@ -261,6 +266,40 @@ class Listeners {
     selected.forEach((obj) => {
       this.editor.bringToFront(obj)
     })
+  }
+
+  /**
+ * Включает отмену и повтор действий сочетанием клавиш.
+ * При нажатии Ctrl+Z отменяет последнее действие.
+ * При нажатии Ctrl+Y повторяет последнее отмененное действие.
+ */
+  enableUndoRedoByHotKeys() {
+    document.addEventListener('keydown', this.handleUndoRedoEvent.bind(this))
+  }
+
+  /**
+   * Обработчик отмены и повтора действий.
+   * @param {Object} event — объект события
+   * @param {Boolean} event.ctrlKey — зажата ли клавиша Ctrl
+   * @param {Boolean} event.metaKey — зажата ли клавиша Cmd (для Mac)
+   * @param {String} event.code — код клавиши
+   */
+  handleUndoRedoEvent(event) {
+    const { ctrlKey, metaKey, code } = event
+
+    // Для Mac можно проверять event.metaKey вместо event.ctrlKey
+    if (!ctrlKey && !metaKey) return
+
+    if (code === 'KeyZ') {
+      event.preventDefault()
+      this.editor.undo()
+      return
+    }
+
+    if (code === 'KeyY') {
+      event.preventDefault()
+      this.editor.redo()
+    }
   }
 }
 

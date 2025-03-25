@@ -22,6 +22,7 @@ export default {
   canvasDragging: false,
   copyObjectsByHotkey: true,
   pasteImageFromClipboard: true,
+  undoRedoByHotKeys: true,
 
   // Дефолтный тип скейлинга для объектов (cotain/cover)
   scaleType: 'contain'
