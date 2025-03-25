@@ -430,10 +430,13 @@ export default ({ fabric, editorOptions }) => ({
 
   /**
    * Экспорт изображения в файл – экспортируется содержимое монтажной области.
-   * Независимо от текущего зума, экспортируется монтажная область в исходном масштабе.
-   * @param {string} fileName
-   * @param {string} contentType
-   * @returns {Promise<File>}
+   * Независимо от текущего зума, экспортируется монтажная область в исходном масштабе. Можно экспортировать как base64.
+   * @param {Object} options - опции
+   * @param {string} options.fileName - имя файла
+   * @param {string} options.contentType - тип контента
+   * @param {Boolean} options.exportAsBase64 - экспортировать как base64
+   * @returns {Promise<File> | String} - файл или base64
+   * @fires editor:canvas-exported
    */
   async exportCanvasAsImageFile(options = {}) {
     const {
@@ -473,22 +476,39 @@ export default ({ fabric, editorOptions }) => ({
     this.montageArea.visible = true
     this.canvas.renderAll()
 
-    if (exportAsBase64) return dataUrl
+    if (exportAsBase64) {
+      this.canvas.fire('editor:canvas-exported', { image: dataUrl })
+
+      return dataUrl
+    }
 
     // Преобразуем dataUrl в Blob и затем в File
     const blob = await (await fetch(dataUrl)).blob()
-    return new File([blob], fileName, { type: contentType })
+
+    const file = new File([blob], fileName, { type: contentType })
+    this.canvas.fire('editor:canvas-exported', { image: file })
+
+    return file
   },
 
   /**
-   * Экспорт выбранного объекта в base64
-   * @param {Object} object - объект для экспорта
+   * Экспорт выбранного объекта в виде изображения или base64
    * @param {Object} options - опции
+   * @param {fabric.Object} options.object - объект для экспорта
+   * @param {String} options.fileName - имя файла
    * @param {String} options.contentType - тип контента
+   * @param {Boolean} options.exportAsBase64 - экспортировать как base64
    * @returns {String} base64
    * @fires editor:object-exported
    */
-  async exportObjectAsImageFile(object, options = {}) {
+  async exportObjectAsImageFile(options = {}) {
+    const {
+      object,
+      fileName = 'image.png',
+      contentType = 'image/png',
+      exportAsBase64 = false
+    } = options
+
     const activeObject = object || this.canvas.getActiveObject()
 
     if (!activeObject) {
@@ -497,22 +517,24 @@ export default ({ fabric, editorOptions }) => ({
       return ''
     }
 
-    const {
-      fileName = 'image.png',
-      contentType = 'image/png',
-      exportAsBase64 = false
-    } = options
-
     // Вызываем toDataURL с указанием нужной области.
     const dataUrl = await activeObject.toDataURL({
       format: contentType.split('/')[1]
     })
 
-    if (exportAsBase64) return dataUrl
+    if (exportAsBase64) {
+      this.canvas.fire('editor:object-exported', { image: dataUrl })
+
+      return dataUrl
+    }
 
     // Преобразуем dataUrl в Blob и затем в File
     const blob = await (await fetch(dataUrl)).blob()
-    return new File([blob], fileName, { type: contentType })
+
+    const file = new File([blob], fileName, { type: contentType })
+    this.canvas.fire('editor:object-exported', { image: file })
+
+    return file
   },
 
   /**
