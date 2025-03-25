@@ -9,8 +9,12 @@ import {
   clearBtn,
   // Bring to front
   bringToFrontBtn,
+  // Bring forward
+  bringForwardBtn,
   // Send to back
   sendToBackBtn,
+  // Send backwards
+  sendBackwardsBtn,
   // Копировать-вставить
   copyBtn,
   pasteBtn,
@@ -38,7 +42,7 @@ import {
   // Сброс масштаба
   resetFit,
   // Scale canvas
-  scaleCanvasBtn,
+  scaleCanvasToImageBtn,
   // Элемент для отображения разрешения канваса
   canvasResolutionNode,
   // Элемент для отображения размера канваса
@@ -64,8 +68,8 @@ import {
 
 export default (editorInstance) => {
   // Scale canvas
-  scaleCanvasBtn.addEventListener('click', () => {
-    editorInstance.scaleCanvas()
+  scaleCanvasToImageBtn.addEventListener('click', () => {
+    editorInstance.scaleCanvasToImage()
   })
 
   // Сброс параметров объекта до дефолтных
@@ -88,9 +92,19 @@ export default (editorInstance) => {
     editorInstance.bringToFront()
   })
 
+  // Bring forward
+  bringForwardBtn.addEventListener('click', () => {
+    editorInstance.bringForward()
+  })
+
   // Send to back
   sendToBackBtn.addEventListener('click', () => {
     editorInstance.sendToBack()
+  })
+
+  // Send backwards
+  sendBackwardsBtn.addEventListener('click', () => {
+    editorInstance.sendBackwards()
   })
 
   // Сброс масштаба
@@ -222,11 +236,11 @@ export default (editorInstance) => {
     currentObjectDataNode.textContent = getCurrentObjectData(editorInstance)
   })
 
-  editorInstance.canvas.on('canvas:display-width-changed', () => {
+  editorInstance.canvas.on('editor:display-width-changed', () => {
     canvasDisplaySizeNode.textContent = getCanvasDisplaySize(editorInstance)
   })
 
-  editorInstance.canvas.on('canvas:display-height-changed', () => {
+  editorInstance.canvas.on('editor:display-height-changed', () => {
     canvasDisplaySizeNode.textContent = getCanvasDisplaySize(editorInstance)
   })
 
@@ -234,7 +248,7 @@ export default (editorInstance) => {
   const canvasZoomNode = document.getElementById('canvas-zoom')
   canvasZoomNode.textContent = editorInstance.canvas.getZoom()
 
-  editorInstance.canvas.on('canvas:zoom-changed', ({ currentZoom }) => {
+  editorInstance.canvas.on('editor:zoom-changed', ({ currentZoom }) => {
     canvasZoomNode.textContent = currentZoom
   })
 }

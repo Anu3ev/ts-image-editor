@@ -29,14 +29,17 @@ import {
 class ImageEditor {
   constructor(canvasId, options = {}) {
     this.isLoading = false
+    this.skipHistory = false
     this.canvas = new fabric.Canvas(canvasId, options)
 
     this.clipboard = null
 
     this.history = {
-      undoStack: [],
-      redoStack: [],
-      maxHistoryLength: 50
+      // Базовое состояние от которого будет строиться история
+      baseState: null,
+      patches: [], // Массив диффов (каждый дифф – результат jsondiffpatch.diff(prevState, nextState))
+      currentIndex: 0, // Текущая позиция в истории (0 означает базовое состояние)
+      maxHistoryLength: 50 // Максимальное количество сохранённых диффов
     }
 
     this.montageArea = new fabric.Rect({
@@ -46,7 +49,12 @@ class ImageEditor {
       stroke: null,
       strokeWidth: 0,
       selectable: false,
-      evented: false
+      evented: false,
+      id: 'montage-area',
+      originX: 'center',
+      originY: 'center',
+      objectCaching: false,
+      noScaleCache: true
     })
 
     this.canvas.add(this.montageArea)
@@ -58,7 +66,10 @@ class ImageEditor {
       stroke: null,
       strokeWidth: 0,
       selectable: false,
-      evented: false
+      evented: false,
+      id: 'area-clip',
+      originX: 'center',
+      originY: 'center'
     })
 
     this.canvas.clipPath = montageAreaClip
@@ -78,7 +89,6 @@ class ImageEditor {
     this.setDisplayWidth(options.displayWidth)
     this.setDisplayHeight(options.displayHeight)
     this.setDefaultScale()
-
     this.saveState()
   }
 }
