@@ -1,5 +1,3 @@
-// TODO: Дефолтный скейлинг
-
 class Listeners {
   /**
    * @param {Object} params
@@ -29,7 +27,8 @@ class Listeners {
       pasteImageFromClipboard,
       undoRedoByHotKeys,
       selectAllByHotkey,
-      deleteObjectsByHotkey
+      deleteObjectsByHotkey,
+      resetObjectFitByDoubleClick
     } = this.options
 
     // Перетаскивание канваса
@@ -70,6 +69,11 @@ class Listeners {
     // Удаление объекта сочетанием клавиш
     if (deleteObjectsByHotkey) {
       this.enableDeleteObjectsByHotkey()
+    }
+
+    // Сброс объекта по двойному клику
+    if (resetObjectFitByDoubleClick) {
+      this.enableResetObjectFitByDoubleClick()
     }
 
     this.initHistoryStateListeners()
@@ -354,6 +358,24 @@ class Listeners {
 
     event.preventDefault()
     this.editor.deleteSelectedObjects()
+  }
+
+  /**
+   * Включает сброс объекта по двойному клику.
+   */
+  enableResetObjectFitByDoubleClick() {
+    this.canvas.on('mouse:dblclick', this.handleResetObjectFit.bind(this))
+  }
+
+  /**
+   * Обработчик сброса объекта по двойному клику.
+   * @param {Object} options
+   * @param {Object} options.target — объект, на который был произведен двойной клик
+   */
+  handleResetObjectFit({ target }) {
+    if (!target) return
+
+    this.editor.resetObject(target)
   }
 }
 
