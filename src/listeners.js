@@ -1,6 +1,7 @@
 // TODO: Удаление объекта по нажатию на Delete
 // TODO: Отмена действия по нажатию на Ctrl+Z
 // TODO: Повтор действия по нажатию на Ctrl+Y
+// TODO: Выделение всех элементов на Ctrl+A
 // TODO: Дефолтный скейлинг
 
 class Listeners {
@@ -61,30 +62,33 @@ class Listeners {
   }
 
   initHistoryStateListeners() {
-    // Сохраняем состояние при изменении объектов.
+    // Сохраняем состояние при добавлении, изменении, удалении объектов.
     // Используем debounce для уменьшения количества сохранений.
     this.canvas.on('object:modified', this.editor.debounce(() => {
+      if (this.editor.skipHistory) return
+
       console.log('object:modified')
       this.editor.saveState()
     }, 300))
 
     this.canvas.on('object:rotating', this.editor.debounce(() => {
+      if (this.editor.skipHistory) return
+
       console.log('object:rotating')
       this.editor.saveState()
     }, 300))
 
-    // Сохраняем состояние при добавлении объекта.
-    this.canvas.on('object:added', (e) => {
+    this.canvas.on('object:added', () => {
+      if (this.editor.skipHistory) return
+
       if (this.editor.isLoading) return
 
       console.log('object:added')
-      // Исключаем добавление объекта в процессе загрузки состояния
       this.editor.saveState()
     })
 
-    // Если требуется, можно также отслеживать удаление объектов:
     this.canvas.on('object:removed', () => {
-      if (this.editor.isLoading) return
+      if (this.editor.skipHistory || this.editor.isLoading) return
 
       console.log('object:removed')
       this.editor.saveState()
@@ -135,23 +139,33 @@ class Listeners {
     const { items } = clipboardData
     const lastItem = items[items.length - 1]
 
-    // Если это объект редактора и не изображение, то вставляем его как есть
-    if (lastItem.type.indexOf('image') === -1) {
-      this.editor.paste()
+    if (lastItem.type.indexOf('image') !== -1) {
+      const blob = lastItem.getAsFile()
+      if (!blob) return
 
+      const reader = new FileReader()
+      reader.onload = (f) => {
+        this.editor.importImage({ url: f.target.result })
+      }
+      reader.readAsDataURL(blob)
       return
     }
 
-    const blob = lastItem.getAsFile()
-    if (!blob) return
+    // Если прямого image нет, проверяем данные HTML
+    const htmlData = clipboardData.getData('text/html')
 
-    const reader = new FileReader()
+    if (htmlData) {
+      const parser = new DOMParser()
+      const doc = parser.parseFromString(htmlData, 'text/html')
+      const img = doc.querySelector('img')
 
-    reader.onload = (f) => {
-      this.editor.importImage({ url: f.target.result })
+      if (img?.src) {
+        this.editor.importImage({ url: img.src })
+        return
+      }
     }
 
-    reader.readAsDataURL(blob)
+    this.editor.paste()
   }
 
   /**
@@ -230,22 +244,23 @@ class Listeners {
   }
 
   /**
-   * Регистрирует обработчик, который при клике на объект поднимает его на передний план.
+   * Включает перемещение объекта на передний план при его выделении.
    */
   enableBringToFrontOnSelection() {
-    this.canvas.on('mouse:down', this.handleObjectSelection.bind(this))
+    this.canvas.on('selection:created', this.handleBringToFront.bind(this))
+    this.canvas.on('selection:updated', this.handleBringToFront.bind(this))
   }
 
   /**
-   * Обработчик выбора объекта.
-   * @param {Object} options
-   * @param {Object} options.target — выбранный объект
+   * Обработчик перемещения выделенного объекта на передний план.
+   * @param {Object} event - объект события Fabric
    */
-  handleObjectSelection({ target }) {
-    if (this.canvas.isDragging) return
-    if (!target) return
+  handleBringToFront({ selected }) {
+    if (!selected?.length) return
 
-    this.editor.bringToFront(target)
+    selected.forEach((obj) => {
+      this.editor.bringToFront(obj)
+    })
   }
 }
 

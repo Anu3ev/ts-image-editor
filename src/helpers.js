@@ -1,3 +1,5 @@
+import * as jsondiffpatch from 'jsondiffpatch'
+
 /**
  * Рассчитывает коэффициент масштабирования изображения.
  * @param {Canvas} canvas - объект канваса
@@ -73,10 +75,35 @@ export function createMosaicPattern(fabric) {
 export function centerCanvas(canvas, montageArea) {
   if (!canvas || !montageArea) return
 
+  montageArea.setCoords()
+  canvas.clipPath.setCoords()
   canvas.centerObject(montageArea)
   canvas.centerObject(canvas.clipPath)
-  montageArea.setCoords()
-  canvas.calcOffset()
-
   canvas.renderAll()
 }
+
+export const diffPatcher = jsondiffpatch.create({
+  objectHash(obj) {
+    return [
+      obj.id,
+      obj.left,
+      obj.top,
+      obj.width,
+      obj.height,
+      obj.flipX,
+      obj.flipY,
+      obj.scaleX,
+      obj.scaleY,
+      obj.angle
+    ].join('-')
+  },
+
+  arrays: {
+    detectMove: true,
+    includeValueOnMove: false
+  },
+
+  textDiff: {
+    minLength: 60
+  }
+})

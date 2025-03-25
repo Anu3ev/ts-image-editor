@@ -10,43 +10,49 @@
   body {
     margin: 0 auto;
     padding: 1rem;
-  }
 
-  #canvas-container {
-    display: flex;
-    align-items: start;
-    justify-content: center;
-    gap: 16px;
-  }
+    #canvas-container {
+      display: flex;
+      align-items: start;
+      justify-content: center;
+      gap: 16px;
+    }
 
-  #editor {
-    border: 1px solid #ccc;
-  }
+    #editor {
+      border: 1px solid #ccc;
+    }
 
-  .controls {
-    border: 1px solid #ccc;
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
+    .controls {
+      border: 1px solid #ccc;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
 
-  .canvas-state {
-    padding: 1rem;
-    border: 1px solid #ccc;
-    display: flex;
-    flex-direction: column;
-    width: 300px;
-    gap: 8px;
-  }
+      .layer-controls {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+    }
 
-  h3, h4, hr {
-    margin: 0;
-    padding: 0;
-  }
+    .canvas-state {
+      padding: 1rem;
+      border: 1px solid #ccc;
+      display: flex;
+      flex-direction: column;
+      width: 300px;
+      gap: 8px;
+    }
 
-  hr {
-    width: 100%;
+    h3, h4, hr {
+      margin: 0;
+      padding: 0;
+    }
+
+    hr {
+      width: 100%;
+    }
   }
 </style>
 </head>
@@ -69,7 +75,6 @@
     <div id="current-object-data"></div>
   </div>
 
-  <!-- <canvas id="editor-canvas" width="800" height="600"></canvas> -->
   <div id="editor"></div>
 
   <div class="controls">
@@ -100,8 +105,15 @@
 
     <div class="layer-controls">
       <h4>Layers</h4>
-      <button id="bring-to-front-btn">Bring to Front</button>
-      <button id="send-to-back-btn">Send to Back</button>
+      <div>
+        <button id="bring-to-front-btn">Bring to Front</button>
+        <button id="bring-object-forward">Bring Object Forward</button>
+      </div>
+
+      <div>
+        <button id="send-to-back-btn">Send to Back</button>
+        <button id="send-object-backwards">Send Object Backwards</button>
+      </div>
     </div>
 
     <div class="copy-paste-controls">

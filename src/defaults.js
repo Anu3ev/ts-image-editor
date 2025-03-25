@@ -12,8 +12,12 @@ export default {
 
   defaultScale: 0.7,
 
+  centeredScaling: true,
+  centeredRotation: true,
+
+
   // Кастомные опции
-  bringToFrontOnSelection: true,
+  bringToFrontOnSelection: false,
   mouseWheelZooming: true,
   canvasDragging: false,
   copyObjectsByHotkey: true,

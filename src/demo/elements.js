@@ -12,8 +12,14 @@ export const clearBtn = document.getElementById('clear-btn')
 // Bring to front
 export const bringToFrontBtn = document.getElementById('bring-to-front-btn')
 
+// Bring forward
+export const bringForwardBtn = document.getElementById('bring-object-forward')
+
 // Send to back
 export const sendToBackBtn = document.getElementById('send-to-back-btn')
+
+// Send backwards
+export const sendBackwardsBtn = document.getElementById('send-object-backwards')
 
 // Копировать-вставить
 export const copyBtn = document.getElementById('copy-btn')
@@ -51,7 +57,7 @@ export const imageFitCoverBtn = document.getElementById('fit-cover-btn')
 export const resetFit = document.getElementById('reset-fit-btn')
 
 // Scale canvas
-export const scaleCanvasBtn = document.getElementById('scale-canvas-btn')
+export const scaleCanvasToImageBtn = document.getElementById('scale-canvas-btn')
 
 // Элемент для отображения разрешения канваса
 export const canvasResolutionNode = document.getElementById('canvas-resolution')
