@@ -23,6 +23,8 @@ export default {
   copyObjectsByHotkey: true,
   pasteImageFromClipboard: true,
   undoRedoByHotKeys: true,
+  selectAllByHotkey: true,
+  deleteObjectsByHotkey: true,
 
   // Дефолтный тип скейлинга для объектов (cotain/cover)
   scaleType: 'contain'

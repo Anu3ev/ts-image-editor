@@ -1,7 +1,3 @@
-// TODO: Удаление объекта по нажатию на Delete
-// TODO: Отмена действия по нажатию на Ctrl+Z
-// TODO: Повтор действия по нажатию на Ctrl+Y
-// TODO: Выделение всех элементов на Ctrl+A
 // TODO: Дефолтный скейлинг
 
 class Listeners {
@@ -31,7 +27,9 @@ class Listeners {
       bringToFrontOnSelection,
       copyObjectsByHotkey,
       pasteImageFromClipboard,
-      undoRedoByHotKeys
+      undoRedoByHotKeys,
+      selectAllByHotkey,
+      deleteObjectsByHotkey
     } = this.options
 
     // Перетаскивание канваса
@@ -59,8 +57,19 @@ class Listeners {
       this.enablePasteImageFromClipboard()
     }
 
+    // Отмена и повтор действий сочетанием клавиш
     if (undoRedoByHotKeys) {
       this.enableUndoRedoByHotKeys()
+    }
+
+    // Выделение всех объектов сочетанием клавиш
+    if (selectAllByHotkey) {
+      this.enableSelectAllByHotkey()
+    }
+
+    // Удаление объекта сочетанием клавиш
+    if (deleteObjectsByHotkey) {
+      this.enableDeleteObjectsByHotkey()
     }
 
     this.initHistoryStateListeners()
@@ -300,6 +309,51 @@ class Listeners {
       event.preventDefault()
       this.editor.redo()
     }
+  }
+
+  /**
+   * Включает выделение всех объектов сочетанием клавиш.
+   * При нажатии Ctrl+A выделяет все объекты на канвасе.
+   */
+  enableSelectAllByHotkey() {
+    document.addEventListener('keydown', this.handleSelectAllEvent.bind(this))
+  }
+
+  /**
+   * Обработчик выделения всех объектов.
+   * @param {Object} event — объект события
+   * @param {Boolean} event.ctrlKey — зажата ли клавиша Ctrl
+   * @param {Boolean} event.metaKey — зажата ли клавиша Cmd (для Mac)
+   * @param {String} event.code — код клавиши
+   */
+  handleSelectAllEvent(event) {
+    const { ctrlKey, metaKey, code } = event
+
+    // Для Mac можно проверять event.metaKey вместо event.ctrlKey
+    if ((!ctrlKey && !metaKey) || code !== 'KeyA') return
+
+    event.preventDefault()
+    this.editor.selectAll()
+  }
+
+  /**
+   * Включает удаление объектов сочетанием клавиш.
+   * При нажатии Delete удаляет все выделенные объекты.
+   */
+  enableDeleteObjectsByHotkey() {
+    document.addEventListener('keydown', this.handleDeleteObjectsEvent.bind(this))
+  }
+
+  /**
+   * Обработчик удаления объектов.
+   * @param {Object} event — объект события
+   * @param {String} event.code — код клавиши
+   */
+  handleDeleteObjectsEvent(event) {
+    if (event.code !== 'Delete') return
+
+    event.preventDefault()
+    this.editor.deleteSelectedObjects()
   }
 }
 
