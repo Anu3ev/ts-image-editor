@@ -59,10 +59,10 @@ export default ({ fabric, editorOptions }) => ({
       return
     }
 
+    const currentZoom = this.canvas.getZoom()
     const { left, top } = this.getObjectDefaultCoords(this.montageArea)
-    console.log('left', left)
-    console.log('top', top)
-    this.canvas.setViewportTransform([0.7, 0, 0, 0.7, left, top])
+
+    this.canvas.setViewportTransform([currentZoom, 0, 0, currentZoom, left, top])
 
     // Центрируем montageArea и clipPath
     centerCanvas(this.canvas, this.montageArea)
@@ -108,8 +108,10 @@ export default ({ fabric, editorOptions }) => ({
       return
     }
 
+    const currentZoom = this.canvas.getZoom()
     const { left, top } = this.getObjectDefaultCoords(this.montageArea)
-    this.canvas.setViewportTransform([0.7, 0, 0, 0.7, left, top])
+
+    this.canvas.setViewportTransform([currentZoom, 0, 0, currentZoom, left, top])
 
     // Центрируем clipPath и монтажную область относительно новых размеров
     centerCanvas(this.canvas, this.montageArea)
@@ -122,7 +124,7 @@ export default ({ fabric, editorOptions }) => ({
   },
 
   /**
-   * Метод для получения координат объекта с учётом дефолтного зума (editorOptions.defaultScale)
+   * Метод для получения координат объекта с учетом текущего зума
    * @param {fabric.Object} object - объект, координаты которого нужно получить
    * @returns {Object} координаты объекта
    */
@@ -137,14 +139,15 @@ export default ({ fabric, editorOptions }) => ({
 
     const { width, height } = activeObject
 
-    const left = (width - (width * editorOptions.defaultScale)) / 2
-    const top = (height - (height * editorOptions.defaultScale)) / 2
+    const currentZoom = this.canvas.getZoom()
+    const left = (width - (width * currentZoom)) / 2
+    const top = (height - (height * currentZoom)) / 2
 
     return { left, top }
   },
 
   /**
-   * Устанавливаем ширину CSS ширину канваса для отображения
+   * Устанавливаем CSS ширину канваса для отображения
    * @param {String} width
    * @fires editor:display-width-changed
    */
@@ -180,7 +183,7 @@ export default ({ fabric, editorOptions }) => ({
   },
 
   /**
-   * Устанавливаем высоту CSS высоту канваса для отображения
+   * Устанавливаем CSS высоту канваса для отображения
    * @param {String} height
    * @fires editor:display-height-changed
    */
@@ -432,7 +435,13 @@ export default ({ fabric, editorOptions }) => ({
    * @param {string} contentType
    * @returns {Promise<File>}
    */
-  async exportImageFile(fileName = nanoid(), contentType = 'image/png') {
+  async exportCanvasAsImageFile(options = {}) {
+    const {
+      fileName = 'image.png',
+      contentType = 'image/png',
+      exportAsBase64 = false
+    } = options
+
     // Сброс активного объекта и ререндер
     this.canvas.discardActiveObject()
     this.canvas.renderAll()
@@ -440,8 +449,7 @@ export default ({ fabric, editorOptions }) => ({
     // Сохраняем текущий viewportTransform (матрицу масштабирования и сдвига)
     const savedTransform = this.canvas.viewportTransform.slice()
 
-    // Сбрасываем viewportTransform до идентичной матрицы,
-    // чтобы экспортировать содержимое в координатах канваса без зума
+    // Сбрасываем viewportTransform, чтобы экспортировать содержимое в координатах канваса без зума
     this.canvas.viewportTransform = [1, 0, 0, 1, 0, 0]
 
     this.canvas.renderAll()
@@ -453,7 +461,7 @@ export default ({ fabric, editorOptions }) => ({
 
     // Вызываем toDataURL с указанием нужной области.
     const dataUrl = this.canvas.toDataURL({
-      format: contentType.split('/')[1], // например, 'png'
+      format: contentType.split('/')[1],
       left,
       top,
       width,
@@ -464,6 +472,43 @@ export default ({ fabric, editorOptions }) => ({
     this.canvas.viewportTransform = savedTransform
     this.montageArea.visible = true
     this.canvas.renderAll()
+
+    if (exportAsBase64) return dataUrl
+
+    // Преобразуем dataUrl в Blob и затем в File
+    const blob = await (await fetch(dataUrl)).blob()
+    return new File([blob], fileName, { type: contentType })
+  },
+
+  /**
+   * Экспорт выбранного объекта в base64
+   * @param {Object} object - объект для экспорта
+   * @param {Object} options - опции
+   * @param {String} options.contentType - тип контента
+   * @returns {String} base64
+   * @fires editor:object-exported
+   */
+  async exportObjectAsImageFile(object, options = {}) {
+    const activeObject = object || this.canvas.getActiveObject()
+
+    if (!activeObject) {
+      console.error('exportObjectAsDataURL: No active object')
+
+      return ''
+    }
+
+    const {
+      fileName = 'image.png',
+      contentType = 'image/png',
+      exportAsBase64 = false
+    } = options
+
+    // Вызываем toDataURL с указанием нужной области.
+    const dataUrl = await activeObject.toDataURL({
+      format: contentType.split('/')[1]
+    })
+
+    if (exportAsBase64) return dataUrl
 
     // Преобразуем dataUrl в Blob и затем в File
     const blob = await (await fetch(dataUrl)).blob()
@@ -646,10 +691,20 @@ export default ({ fabric, editorOptions }) => ({
       this.setResolutionWidth(loadedMontage.width)
       this.setResolutionHeight(loadedMontage.height)
 
-      const relativeLeft = (this.montageArea.width - (this.montageArea.width * editorOptions.defaultScale)) / 2
-      const relativeTop = (this.montageArea.height - (this.montageArea.height * editorOptions.defaultScale)) / 2
+      const currentZoom = this.canvas.getZoom()
 
-      this.canvas.setViewportTransform([0.7, 0, 0, 0.7, relativeLeft, relativeTop])
+      const { width, height } = this.montageArea
+      const relativeLeft = (width - (width * currentZoom)) / 2
+      const relativeTop = (height - (height * currentZoom)) / 2
+
+      this.canvas.setViewportTransform([
+        currentZoom,
+        0,
+        0,
+        currentZoom,
+        relativeLeft,
+        relativeTop
+      ])
     }
 
     this.canvas.renderAll()
@@ -866,9 +921,6 @@ export default ({ fabric, editorOptions }) => ({
   setZoom(zoom = editorOptions.defaultScale) {
     const pointX = this.canvas.getWidth() / 2
     const pointY = this.canvas.getHeight() / 2
-
-    console.log('pointX', pointX)
-    console.log('pointY', pointY)
 
     let newZoom = zoom
 

@@ -1,5 +1,3 @@
-// TODO: Дефолтный скейлинг
-
 class Listeners {
   /**
    * @param {Object} params
@@ -29,7 +27,8 @@ class Listeners {
       pasteImageFromClipboard,
       undoRedoByHotKeys,
       selectAllByHotkey,
-      deleteObjectsByHotkey
+      deleteObjectsByHotkey,
+      resetObjectFitByDoubleClick
     } = this.options
 
     // Перетаскивание канваса
@@ -70,6 +69,11 @@ class Listeners {
     // Удаление объекта сочетанием клавиш
     if (deleteObjectsByHotkey) {
       this.enableDeleteObjectsByHotkey()
+    }
+
+    // Сброс объекта по двойному клику
+    if (resetObjectFitByDoubleClick) {
+      this.enableResetObjectFitByDoubleClick()
     }
 
     this.initHistoryStateListeners()
@@ -114,7 +118,7 @@ class Listeners {
    * При нажатии Ctrl+C копирует выделенные объекты.
    */
   enableCopyObjectsByHotkey() {
-    document.addEventListener('keydown', this.handleCopyEvent.bind(this))
+    document.addEventListener('keydown', (event) => this.handleCopyEvent(event))
   }
 
   /**
@@ -138,7 +142,7 @@ class Listeners {
    * Включает вставку изображений и объектов сочетанием клавиш.
    */
   enablePasteImageFromClipboard() {
-    document.addEventListener('paste', this.handlePasteEvent.bind(this))
+    document.addEventListener('paste', (event) => this.handlePasteEvent(event))
   }
 
   /**
@@ -186,9 +190,9 @@ class Listeners {
    * Включает перетаскивание канваса (drag) при зажатом Alt.
    */
   enableCanvasDragging() {
-    this.canvas.on('mouse:down', this.handleCanvasDragStart.bind(this))
-    this.canvas.on('mouse:move', this.handleCanvasDragging.bind(this))
-    this.canvas.on('mouse:up', this.handleCanvasDragEnd.bind(this))
+    this.canvas.on('mouse:down', (event) => this.handleCanvasDragStart(event))
+    this.canvas.on('mouse:move', (event) => this.handleCanvasDragging(event))
+    this.canvas.on('mouse:up', () => this.handleCanvasDragEnd())
   }
 
   /**
@@ -238,7 +242,7 @@ class Listeners {
    * Включает зум канваса при прокрутке колесика мыши.
    */
   enableMouseWheelZooming() {
-    this.canvas.on('mouse:wheel', this.handleMouseWheelZoom.bind(this))
+    this.canvas.on('mouse:wheel', (event) => this.handleMouseWheelZoom(event))
   }
 
   /**
@@ -261,8 +265,8 @@ class Listeners {
    * Включает перемещение объекта на передний план при его выделении.
    */
   enableBringToFrontOnSelection() {
-    this.canvas.on('selection:created', this.handleBringToFront.bind(this))
-    this.canvas.on('selection:updated', this.handleBringToFront.bind(this))
+    this.canvas.on('selection:created', (event) => this.handleBringToFront(event))
+    this.canvas.on('selection:updated', (event) => this.handleBringToFront(event))
   }
 
   /**
@@ -283,7 +287,7 @@ class Listeners {
  * При нажатии Ctrl+Y повторяет последнее отмененное действие.
  */
   enableUndoRedoByHotKeys() {
-    document.addEventListener('keydown', this.handleUndoRedoEvent.bind(this))
+    document.addEventListener('keydown', (event) => this.handleUndoRedoEvent(event))
   }
 
   /**
@@ -316,7 +320,7 @@ class Listeners {
    * При нажатии Ctrl+A выделяет все объекты на канвасе.
    */
   enableSelectAllByHotkey() {
-    document.addEventListener('keydown', this.handleSelectAllEvent.bind(this))
+    document.addEventListener('keydown', (event) => this.handleSelectAllEvent(event))
   }
 
   /**
@@ -341,7 +345,7 @@ class Listeners {
    * При нажатии Delete удаляет все выделенные объекты.
    */
   enableDeleteObjectsByHotkey() {
-    document.addEventListener('keydown', this.handleDeleteObjectsEvent.bind(this))
+    document.addEventListener('keydown', (event) => this.handleDeleteObjectsEvent(event))
   }
 
   /**
@@ -354,6 +358,24 @@ class Listeners {
 
     event.preventDefault()
     this.editor.deleteSelectedObjects()
+  }
+
+  /**
+   * Включает сброс объекта по двойному клику.
+   */
+  enableResetObjectFitByDoubleClick() {
+    this.canvas.on('mouse:dblclick', (event) => this.handleResetObjectFit(event))
+  }
+
+  /**
+   * Обработчик сброса объекта по двойному клику.
+   * @param {Object} options
+   * @param {Object} options.target — объект, на который был произведен двойной клик
+   */
+  handleResetObjectFit({ target }) {
+    if (!target) return
+
+    this.editor.resetObject(target)
   }
 }
 

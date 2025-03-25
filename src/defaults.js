@@ -15,7 +15,6 @@ export default {
   centeredScaling: true,
   centeredRotation: true,
 
-
   // Кастомные опции
   bringToFrontOnSelection: false,
   mouseWheelZooming: true,
@@ -25,6 +24,7 @@ export default {
   undoRedoByHotKeys: true,
   selectAllByHotkey: true,
   deleteObjectsByHotkey: true,
+  resetObjectFitByDoubleClick: true,
 
   // Дефолтный тип скейлинга для объектов (cotain/cover)
   scaleType: 'contain'
