@@ -40,7 +40,7 @@ export default ({ fabric, editorOptions }) => ({
     const { preserveProportional, withoutSave } = options
     const { width: montageAreaWidth, height: montageAreaHeight } = this.montageArea
 
-    let adjustedWidth = width
+    let adjustedWidth = Number(width)
     if (adjustedWidth < CANVAS_MIN_WIDTH) adjustedWidth = CANVAS_MIN_WIDTH
     if (adjustedWidth > CANVAS_MAX_WIDTH) adjustedWidth = CANVAS_MAX_WIDTH
 
@@ -88,7 +88,7 @@ export default ({ fabric, editorOptions }) => ({
     const { preserveProportional, withoutSave } = options
     const { width: montageAreaWidth, height: montageAreaHeight } = this.montageArea
 
-    let adjustedHeight = height
+    let adjustedHeight = Number(height)
     if (adjustedHeight < CANVAS_MIN_HEIGHT) adjustedHeight = CANVAS_MIN_HEIGHT
     if (adjustedHeight > CANVAS_MAX_HEIGHT) adjustedHeight = CANVAS_MAX_HEIGHT
 
@@ -147,74 +147,68 @@ export default ({ fabric, editorOptions }) => ({
   },
 
   /**
-   * Устанавливаем CSS ширину канваса для отображения
-   * @param {String} width
-   * @fires editor:display-width-changed
-   */
+ * Устанавливаем CSS ширину канваса для отображения
+ * @param {string|number} width
+ * @param {object} options
+ */
   setDisplayWidth(width, options = {}) {
-    if (!width) return
-
-    const numericWidth = parseFloat(width)
-
-    // eslint-disable-next-line no-restricted-globals
-    if (isNaN(numericWidth)) return
-
-    const { preserveProportional } = options
-
-    const { width: currentDisplayWidth, height: currentDisplayHeight } = this.canvas.lowerCanvasEl.style
-
-    const stringWidth = `${numericWidth}px`
-
-    this.canvas.lowerCanvasEl.style.width = stringWidth
-    this.canvas.upperCanvasEl.style.width = stringWidth
-    this.canvas.wrapperEl.style.width = stringWidth
-    editorOptions.editorContainer.style.width = stringWidth
-
-    // Если нужно сохранить пропорции, вычисляем новую высоту
-    // eslint-disable-next-line no-restricted-globals
-    if (preserveProportional) {
-      const factor = numericWidth / parseFloat(currentDisplayWidth)
-      const newHeight = parseFloat(currentDisplayHeight) * factor
-
-      this.setDisplayHeight(newHeight)
-    }
-
-    this.canvas.fire('editor:display-width-changed', { width })
+    this.setDisplayDimension('width', width, options)
   },
 
   /**
    * Устанавливаем CSS высоту канваса для отображения
-   * @param {String} height
-   * @fires editor:display-height-changed
+   * @param {string|number} height
+   * @param {object} options
    */
   setDisplayHeight(height, options = {}) {
-    if (!height) return
+    this.setDisplayDimension('height', height, options)
+  },
 
-    const numericHeight = parseFloat(height)
+  /**
+   * Устанавливаем CSS ширину или высоту канваса для отображения
+   * @param {('width'|'height')} dimension
+   * @param {string|number} value
+   * @param {object} options
+   */
+  setDisplayDimension(dimension, value, options = {}) {
+    if (!value) return
 
-    // eslint-disable-next-line no-restricted-globals
-    if (isNaN(numericHeight)) return
+    const canvasElements = [
+      this.canvas.lowerCanvasEl,
+      this.canvas.upperCanvasEl,
+      this.canvas.wrapperEl,
+      editorOptions.editorContainer
+    ]
 
-    const { preserveProportional } = options
+    const cssDimension = dimension === 'width' ? 'width' : 'height'
 
-    const { width: currentDisplayWidth, height: currentDisplayHeight } = this.canvas.lowerCanvasEl.style
+    // Если строка, то просто устанавливаем
+    if (typeof value === 'string') {
+      canvasElements.forEach((el) => { el.style[cssDimension] = value })
 
-    const stringHeight = `${numericHeight}px`
-
-    this.canvas.lowerCanvasEl.style.height = stringHeight
-    this.canvas.upperCanvasEl.style.height = stringHeight
-    this.canvas.wrapperEl.style.height = stringHeight
-    editorOptions.editorContainer.style.height = stringHeight
-
-    // Если нужно сохранить пропорции, вычисляем новую высоту
-    if (preserveProportional) {
-      const factor = numericHeight / parseFloat(currentDisplayHeight)
-      const newHeight = parseFloat(currentDisplayWidth) * factor
-
-      this.setDisplayWidth(newHeight)
+      return
     }
 
-    this.canvas.fire('editor:display-height-changed', { height })
+    // Если число, то добавляем px
+    const numericValue = parseFloat(value)
+    // eslint-disable-next-line no-restricted-globals
+    if (isNaN(numericValue)) return
+
+    const currentDimension = parseFloat(this.canvas.lowerCanvasEl.style[cssDimension])
+    const newValuePx = `${numericValue}px`
+
+    canvasElements.forEach((el) => { el.style[cssDimension] = newValuePx })
+
+    if (options.preserveProportional) {
+      const otherDimension = dimension === 'width' ? 'height' : 'width'
+      const currentOtherDimension = parseFloat(this.canvas.lowerCanvasEl.style[otherDimension])
+      const factor = numericValue / currentDimension
+      const newOtherDimension = currentOtherDimension * factor
+
+      this.setDisplayDimension(otherDimension, newOtherDimension)
+    }
+
+    this.canvas.fire(`editor:display-${cssDimension}-changed`, { [cssDimension]: value })
   },
 
   /**
@@ -231,7 +225,7 @@ export default ({ fabric, editorOptions }) => ({
     if (!url || typeof url !== 'string') return
 
     try {
-      const img = await fabric.FabricImage.fromURL(url)
+      const img = await fabric.FabricImage.fromURL(url, { crossOrigin: 'anonymous' })
 
       const canvasWidth = this.canvas.getWidth()
       const canvasHeight = this.canvas.getHeight()
@@ -452,6 +446,12 @@ export default ({ fabric, editorOptions }) => ({
     // Сохраняем текущий viewportTransform (матрицу масштабирования и сдвига)
     const savedTransform = this.canvas.viewportTransform.slice()
 
+    // Если экспортируем JPEG, временно задаем белый фон (если его ещё нет)
+    const savedBackground = this.canvas.backgroundColor
+    if (contentType === 'image/jpeg') {
+      this.canvas.backgroundColor = '#ffffff'
+    }
+
     // Сбрасываем viewportTransform, чтобы экспортировать содержимое в координатах канваса без зума
     this.canvas.viewportTransform = [1, 0, 0, 1, 0, 0]
 
@@ -461,6 +461,11 @@ export default ({ fabric, editorOptions }) => ({
     const { left, top, width, height } = this.montageArea.getBoundingRect()
 
     this.montageArea.visible = false
+
+    console.log('options', options)
+    console.log('this.canvas', this.canvas)
+
+    console.log('exportCanvasAsImageFile contentType', contentType)
 
     // Вызываем toDataURL с указанием нужной области.
     const dataUrl = this.canvas.toDataURL({
@@ -474,6 +479,7 @@ export default ({ fabric, editorOptions }) => ({
     // Восстанавливаем сохранённый viewportTransform и заливку для монтажной области
     this.canvas.viewportTransform = savedTransform
     this.montageArea.visible = true
+    this.canvas.backgroundColor = savedBackground
     this.canvas.renderAll()
 
     if (exportAsBase64) {

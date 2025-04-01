@@ -2,8 +2,8 @@
 
 export default {
   // Ширина и высота канваса в пикселях (backstore)
-  width: '800',
-  height: '600',
+  width: 800,
+  height: 600,
   // Отображаемая ширина и высота канваса в пикселях
   displayWidth: '800px',
   displayHeight: '600px',
