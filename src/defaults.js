@@ -2,8 +2,8 @@
 
 export default {
   // Ширина и высота канваса в пикселях (backstore)
-  width: '800',
-  height: '600',
+  width: 800,
+  height: 600,
   // Отображаемая ширина и высота канваса в пикселях
   displayWidth: '800px',
   displayHeight: '600px',
@@ -27,5 +27,11 @@ export default {
   resetObjectFitByDoubleClick: true,
 
   // Дефолтный тип скейлинга для объектов (cotain/cover)
-  scaleType: 'contain'
+  scaleType: 'contain',
+
+  // Можно передать JSON объект в виде строки для инициализации редактора
+  initialStateJSON: null,
+
+  // URL изображения
+  imageUrl: null
 }

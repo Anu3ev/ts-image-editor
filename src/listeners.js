@@ -1,22 +1,45 @@
 class Listeners {
   /**
+   * Конструктор принимает редактор и опции.
    * @param {Object} params
-   * @param {ImageEditor} params.editor — редактор, содержащий канвас
+   * @param {ImageEditor} params.editor – редактор, содержащий canvas
    * @param {Object} params.options — настройки редактора (см. defaults.js)
    * @param {Boolean} [params.options.canvasDragging] — включить перетаскивание канваса
    * @param {Boolean} [params.options.mouseWheelZooming] — включить зум колесом мыши
    * @param {Boolean} [params.options.bringToFrontOnSelection] — поднимать объект на передний план при выборе
+   * @param {Boolean} [params.options.copyObjectsByHotkey] — копировать объекты по Ctrl+C
+   * @param {Boolean} [params.options.pasteImageFromClipboard] — вставлять изображения и объекты из буфера обмена
+   * @param {Boolean} [params.options.undoRedoByHotKeys] — отмена/повтор по Ctrl+Z/Ctrl+Y
+   * @param {Boolean} [params.options.selectAllByHotkey] — выделение всех объектов по Ctrl+A
+   * @param {Boolean} [params.options.deleteObjectsByHotkey] — удаление объектов по Delete
+   * @param {Boolean} [params.options.resetObjectFitByDoubleClick] — сброс фита объекта по двойному клику
    */
   constructor({ editor, options = {} }) {
     this.editor = editor
     this.canvas = editor.canvas
     this.options = options
 
+    // Создаем и сохраняем привязанные обработчики, чтобы потом можно было их снять.
+    // Глобальные (DOM) события:
+    this.handleCopyEventBound = this.handleCopyEvent.bind(this)
+    this.handlePasteEventBound = this.handlePasteEvent.bind(this)
+    this.handleUndoRedoEventBound = this.handleUndoRedoEvent.bind(this)
+    this.handleSelectAllEventBound = this.handleSelectAllEvent.bind(this)
+    this.handleDeleteObjectsEventBound = this.handleDeleteObjectsEvent.bind(this)
+
+    // Canvas (Fabric) события:
+    this.handleCanvasDragStartBound = this.handleCanvasDragStart.bind(this)
+    this.handleCanvasDraggingBound = this.handleCanvasDragging.bind(this)
+    this.handleCanvasDragEndBound = this.handleCanvasDragEnd.bind(this)
+    this.handleMouseWheelZoomBound = this.handleMouseWheelZoom.bind(this)
+    this.handleBringToFrontBound = this.handleBringToFront.bind(this)
+    this.handleResetObjectFitBound = this.handleResetObjectFit.bind(this)
+
     this.init()
   }
 
   /**
-   * Инициализация всех обработчиков.
+   * Инициализация всех обработчиков согласно опциям.
    */
   init() {
     const {
@@ -31,98 +54,89 @@ class Listeners {
       resetObjectFitByDoubleClick
     } = this.options
 
-    // Перетаскивание канваса
+    // Подключаем Fabric-события для перетаскивания канваса, если включено
     if (canvasDragging) {
-      this.enableCanvasDragging()
+      this.canvas.on('mouse:down', this.handleCanvasDragStartBound)
+      this.canvas.on('mouse:move', this.handleCanvasDraggingBound)
+      this.canvas.on('mouse:up', this.handleCanvasDragEndBound)
     }
 
     // Зум колесом мыши
     if (mouseWheelZooming) {
-      this.enableMouseWheelZooming()
+      this.canvas.on('mouse:wheel', this.handleMouseWheelZoomBound)
     }
 
     // bringToFront при выборе объекта
     if (bringToFrontOnSelection) {
-      this.enableBringToFrontOnSelection()
+      this.canvas.on('selection:created', this.handleBringToFrontBound)
+      this.canvas.on('selection:updated', this.handleBringToFrontBound)
     }
 
+    if (resetObjectFitByDoubleClick) {
+      this.canvas.on('mouse:dblclick', this.handleResetObjectFitBound)
+    }
+
+    // Подключаем глобальные DOM-события:
     // Копирование объектов сочетанием клавиш
     if (copyObjectsByHotkey) {
-      this.enableCopyObjectsByHotkey()
+      document.addEventListener('keydown', this.handleCopyEventBound, { capture: true })
     }
 
-    // Вставка изображения из буфера обмена сочетанием клавиш
     if (pasteImageFromClipboard) {
-      this.enablePasteImageFromClipboard()
+      document.addEventListener('paste', this.handlePasteEventBound, { capture: true })
     }
 
-    // Отмена и повтор действий сочетанием клавиш
     if (undoRedoByHotKeys) {
-      this.enableUndoRedoByHotKeys()
+      document.addEventListener('keydown', this.handleUndoRedoEventBound, { capture: true })
     }
 
-    // Выделение всех объектов сочетанием клавиш
     if (selectAllByHotkey) {
-      this.enableSelectAllByHotkey()
+      document.addEventListener('keydown', this.handleSelectAllEventBound, { capture: true })
     }
 
-    // Удаление объекта сочетанием клавиш
     if (deleteObjectsByHotkey) {
-      this.enableDeleteObjectsByHotkey()
+      document.addEventListener('keydown', this.handleDeleteObjectsEventBound, { capture: true })
     }
 
-    // Сброс объекта по двойному клику
-    if (resetObjectFitByDoubleClick) {
-      this.enableResetObjectFitByDoubleClick()
-    }
-
+    // Инициализация истории редактора
     this.initHistoryStateListeners()
   }
 
+  /**
+   * Инициализация событий для сохранения истории (используя debounce).
+   */
   initHistoryStateListeners() {
     // Сохраняем состояние при добавлении, изменении, удалении объектов.
     // Используем debounce для уменьшения количества сохранений.
     this.canvas.on('object:modified', this.editor.debounce(() => {
       if (this.editor.skipHistory) return
 
-      console.log('object:modified')
       this.editor.saveState()
     }, 300))
 
     this.canvas.on('object:rotating', this.editor.debounce(() => {
       if (this.editor.skipHistory) return
 
-      console.log('object:rotating')
       this.editor.saveState()
     }, 300))
 
     this.canvas.on('object:added', () => {
-      if (this.editor.skipHistory) return
+      if (this.editor.skipHistory || this.editor.isLoading) return
 
-      if (this.editor.isLoading) return
-
-      console.log('object:added')
       this.editor.saveState()
     })
 
     this.canvas.on('object:removed', () => {
       if (this.editor.skipHistory || this.editor.isLoading) return
 
-      console.log('object:removed')
       this.editor.saveState()
     })
   }
 
-  /**
-   * Включает копирование объектов сочетанием клавиш.
-   * При нажатии Ctrl+C копирует выделенные объекты.
-   */
-  enableCopyObjectsByHotkey() {
-    document.addEventListener('keydown', (event) => this.handleCopyEvent(event))
-  }
+  // --- Глобальные DOM-обработчики ---
 
   /**
-   * Обработчик копирования объектов.
+   * Обработчик для Ctrl+C (копирование).
    * @param {Object} event — объект события
    * @param {Boolean} event.ctrlKey — зажата ли клавиша Ctrl
    * @param {Boolean} event.metaKey — зажата ли клавиша Cmd (для Mac)
@@ -131,18 +145,10 @@ class Listeners {
   handleCopyEvent(event) {
     const { ctrlKey, metaKey, code } = event
 
-    // Для Mac можно проверять event.metaKey вместо event.ctrlKey
     if ((!ctrlKey && !metaKey) || code !== 'KeyC') return
 
     event.preventDefault()
     this.editor.copy()
-  }
-
-  /**
-   * Включает вставку изображений и объектов сочетанием клавиш.
-   */
-  enablePasteImageFromClipboard() {
-    document.addEventListener('paste', (event) => this.handlePasteEvent(event))
   }
 
   /**
@@ -165,6 +171,7 @@ class Listeners {
       reader.onload = (f) => {
         this.editor.importImage({ url: f.target.result })
       }
+
       reader.readAsDataURL(blob)
       return
     }
@@ -187,112 +194,8 @@ class Listeners {
   }
 
   /**
-   * Включает перетаскивание канваса (drag) при зажатом Alt.
-   */
-  enableCanvasDragging() {
-    this.canvas.on('mouse:down', (event) => this.handleCanvasDragStart(event))
-    this.canvas.on('mouse:move', (event) => this.handleCanvasDragging(event))
-    this.canvas.on('mouse:up', () => this.handleCanvasDragEnd())
-  }
-
-  /**
-   * Обработчик начала перетаскивания канваса.
-   * @param {Object} options
-   * @param {Object} options.e — объект события
-   */
-  handleCanvasDragStart({ e: event }) {
-    // перетаскивание происходит только при зажатом Alt
-    if (!event.altKey) return
-
-    this.canvas.isDragging = true
-    this.canvas.selection = false
-    this.canvas.lastPosX = event.clientX
-    this.canvas.lastPosY = event.clientY
-  }
-
-  /**
-   * Обработчик перетаскивания канваса.
-   * @param {Object} options
-   * @param {Object} options.e — объект события
-   *
-   * TODO: Надо как-то ограничить область перетаскивания, чтобы канвас не уходил сильно далеко за пределы экрана
-   */
-  handleCanvasDragging({ e: event }) {
-    if (!this.canvas.isDragging) return
-
-    const vpt = this.canvas.viewportTransform
-    vpt[4] += event.clientX - this.canvas.lastPosX
-    vpt[5] += event.clientY - this.canvas.lastPosY
-    this.canvas.requestRenderAll()
-    this.canvas.lastPosX = event.clientX
-    this.canvas.lastPosY = event.clientY
-  }
-
-  /**
-   * Обработчик завершения перетаскивания канваса.
-   * Сохраняет новое положение канваса.
-   */
-  handleCanvasDragEnd() {
-    this.canvas.setViewportTransform(this.canvas.viewportTransform)
-    this.canvas.isDragging = false
-    this.canvas.selection = true
-  }
-
-  /**
-   * Включает зум канваса при прокрутке колесика мыши.
-   */
-  enableMouseWheelZooming() {
-    this.canvas.on('mouse:wheel', (event) => this.handleMouseWheelZoom(event))
-  }
-
-  /**
-   * Обработчик зума колесиком мыши.
-   * @param {Object} options
-   * @param {Object} options.e — объект события
-   */
-  handleMouseWheelZoom({ e: event }) {
-    const conversionFactor = 0.001 // подберите оптимальное значение по опыту
-    const scaleAdjustment = -event.deltaY * conversionFactor
-
-    // Вызываем ваш метод zoom, который уже реализует логику добавления к текущему зуму и центрирования
-    this.editor.zoom(scaleAdjustment)
-
-    event.preventDefault()
-    event.stopPropagation()
-  }
-
-  /**
-   * Включает перемещение объекта на передний план при его выделении.
-   */
-  enableBringToFrontOnSelection() {
-    this.canvas.on('selection:created', (event) => this.handleBringToFront(event))
-    this.canvas.on('selection:updated', (event) => this.handleBringToFront(event))
-  }
-
-  /**
-   * Обработчик перемещения выделенного объекта на передний план.
-   * @param {Object} event - объект события Fabric
-   */
-  handleBringToFront({ selected }) {
-    if (!selected?.length) return
-
-    selected.forEach((obj) => {
-      this.editor.bringToFront(obj)
-    })
-  }
-
-  /**
- * Включает отмену и повтор действий сочетанием клавиш.
- * При нажатии Ctrl+Z отменяет последнее действие.
- * При нажатии Ctrl+Y повторяет последнее отмененное действие.
- */
-  enableUndoRedoByHotKeys() {
-    document.addEventListener('keydown', (event) => this.handleUndoRedoEvent(event))
-  }
-
-  /**
-   * Обработчик отмены и повтора действий.
-   * @param {Object} event — объект события
+   * Обработчик для отмены/повтора (Ctrl+Z/Ctrl+Y).
+   *  @param {Object} event — объект события
    * @param {Boolean} event.ctrlKey — зажата ли клавиша Ctrl
    * @param {Boolean} event.metaKey — зажата ли клавиша Cmd (для Mac)
    * @param {String} event.code — код клавиши
@@ -300,7 +203,6 @@ class Listeners {
   handleUndoRedoEvent(event) {
     const { ctrlKey, metaKey, code } = event
 
-    // Для Mac можно проверять event.metaKey вместо event.ctrlKey
     if (!ctrlKey && !metaKey) return
 
     if (code === 'KeyZ') {
@@ -316,15 +218,7 @@ class Listeners {
   }
 
   /**
-   * Включает выделение всех объектов сочетанием клавиш.
-   * При нажатии Ctrl+A выделяет все объекты на канвасе.
-   */
-  enableSelectAllByHotkey() {
-    document.addEventListener('keydown', (event) => this.handleSelectAllEvent(event))
-  }
-
-  /**
-   * Обработчик выделения всех объектов.
+   * Обработчик для выделения всех объектов (Ctrl+A).
    * @param {Object} event — объект события
    * @param {Boolean} event.ctrlKey — зажата ли клавиша Ctrl
    * @param {Boolean} event.metaKey — зажата ли клавиша Cmd (для Mac)
@@ -332,50 +226,128 @@ class Listeners {
    */
   handleSelectAllEvent(event) {
     const { ctrlKey, metaKey, code } = event
-
-    // Для Mac можно проверять event.metaKey вместо event.ctrlKey
     if ((!ctrlKey && !metaKey) || code !== 'KeyA') return
-
     event.preventDefault()
     this.editor.selectAll()
   }
 
   /**
-   * Включает удаление объектов сочетанием клавиш.
-   * При нажатии Delete удаляет все выделенные объекты.
-   */
-  enableDeleteObjectsByHotkey() {
-    document.addEventListener('keydown', (event) => this.handleDeleteObjectsEvent(event))
-  }
-
-  /**
-   * Обработчик удаления объектов.
+   * Обработчик для удаления объектов (Delete).
    * @param {Object} event — объект события
    * @param {String} event.code — код клавиши
    */
   handleDeleteObjectsEvent(event) {
     if (event.code !== 'Delete') return
-
     event.preventDefault()
     this.editor.deleteSelectedObjects()
   }
 
+  // --- Обработчики для событий canvas (Fabric) ---
+
   /**
-   * Включает сброс объекта по двойному клику.
+   * Начало перетаскивания канваса (срабатывает при mouse:down).
+   * @param {Object} options
+   * @param {Object} options.e — объект события
    */
-  enableResetObjectFitByDoubleClick() {
-    this.canvas.on('mouse:dblclick', (event) => this.handleResetObjectFit(event))
+  handleCanvasDragStart({ e: event }) {
+    // перетаскивание происходит только при зажатом Alt
+    if (!event.altKey) return
+    this.canvas.isDragging = true
+    this.canvas.selection = false
+    this.canvas.lastPosX = event.clientX
+    this.canvas.lastPosY = event.clientY
+  }
+
+  /**
+   * Перетаскивание канваса (mouse:move).
+   * @param {Object} options
+   * @param {Object} options.e — объект события
+   *
+   * TODO: Надо как-то ограничить область перетаскивания, чтобы канвас не уходил сильно далеко за пределы экрана
+   */
+  handleCanvasDragging({ e: event }) {
+    if (!this.canvas.isDragging) return
+    const vpt = this.canvas.viewportTransform
+    vpt[4] += event.clientX - this.canvas.lastPosX
+    vpt[5] += event.clientY - this.canvas.lastPosY
+    this.canvas.requestRenderAll()
+    this.canvas.lastPosX = event.clientX
+    this.canvas.lastPosY = event.clientY
+  }
+
+  /**
+   * Завершение перетаскивания канваса (mouse:up).
+   * Сохраняет новое положение канваса.
+   */
+  handleCanvasDragEnd() {
+    this.canvas.setViewportTransform(this.canvas.viewportTransform)
+    this.canvas.isDragging = false
+    this.canvas.selection = true
+  }
+
+  /**
+   * Обработчик зума колесиком мыши.
+   * @param {Object} options
+   * @param {Object} options.e — объект события
+   */
+  handleMouseWheelZoom({ e: event }) {
+    const conversionFactor = 0.001
+    const scaleAdjustment = -event.deltaY * conversionFactor
+
+    this.editor.zoom(scaleAdjustment)
+
+    event.preventDefault()
+    event.stopPropagation()
+  }
+
+  /**
+   * Обработчик, поднимающий выделенные объекты на передний план.
+   * @param {Object} event - объект события Fabric
+   * @param {Array} event.selected - массив выбранных объектов
+   */
+  handleBringToFront({ selected }) {
+    console.log('handleBringToFront')
+    if (!selected?.length) return
+    selected.forEach((obj) => {
+      this.editor.bringToFront(obj)
+    })
   }
 
   /**
    * Обработчик сброса объекта по двойному клику.
-   * @param {Object} options
-   * @param {Object} options.target — объект, на который был произведен двойной клик
    */
   handleResetObjectFit({ target }) {
     if (!target) return
-
     this.editor.resetObject(target)
+  }
+
+  /**
+   * Метод для удаления всех слушателей
+   */
+  destroy() {
+    // Глобальные DOM-обработчики
+    document.removeEventListener('keydown', this.handleCopyEventBound, { capture: true })
+    document.removeEventListener('paste', this.handlePasteEventBound, { capture: true })
+    document.removeEventListener('keydown', this.handleUndoRedoEventBound, { capture: true })
+    document.removeEventListener('keydown', this.handleSelectAllEventBound, { capture: true })
+    document.removeEventListener('keydown', this.handleDeleteObjectsEventBound, { capture: true })
+
+    // Обработчики canvas (Fabric):
+    if (this.options.canvasDragging) {
+      this.canvas.off('mouse:down', this.handleCanvasDragStartBound)
+      this.canvas.off('mouse:move', this.handleCanvasDraggingBound)
+      this.canvas.off('mouse:up', this.handleCanvasDragEndBound)
+    }
+    if (this.options.mouseWheelZooming) {
+      this.canvas.off('mouse:wheel', this.handleMouseWheelZoomBound)
+    }
+    if (this.options.bringToFrontOnSelection) {
+      this.canvas.off('selection:created', this.handleBringToFrontBound)
+      this.canvas.off('selection:updated', this.handleBringToFrontBound)
+    }
+    if (this.options.resetObjectFitByDoubleClick) {
+      this.canvas.off('mouse:dblclick', this.handleResetObjectFitBound)
+    }
   }
 }
 
