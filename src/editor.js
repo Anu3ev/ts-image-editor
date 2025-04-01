@@ -24,6 +24,7 @@ class ImageEditor {
   constructor(canvasId, options = {}) {
     this.isLoading = false
     this.skipHistory = false
+    this.options = options
     this.canvas = new fabric.Canvas(canvasId, options)
 
     this.clipboard = null
@@ -51,12 +52,16 @@ class ImageEditor {
       noScaleCache: true
     })
 
+    this.init()
+  }
+
+  async init() {
     this.canvas.add(this.montageArea)
 
     // Создаем область для клиппинга (без fill, чтобы не влиял на экспорт)
     const montageAreaClip = new fabric.Rect({
-      width: options.width,
-      height: options.height,
+      width: this.options.width,
+      height: this.options.height,
       stroke: null,
       strokeWidth: 0,
       selectable: false,
@@ -68,21 +73,30 @@ class ImageEditor {
 
     this.canvas.clipPath = montageAreaClip
 
-    this.canvas.renderAll()
-
     Object.assign(
       this,
       methods({
         fabric,
-        editorOptions: options
+        editorOptions: this.options
       })
     )
 
-    this.listeners = new Listeners({ editor: this, options })
+    this.listeners = new Listeners({ editor: this, options: this.options })
 
-    this.setDisplayWidth(options.displayWidth)
-    this.setDisplayHeight(options.displayHeight)
-    this.setDefaultScale()
+    this.setDisplayWidth(this.options.displayWidth)
+    this.setDisplayHeight(this.options.displayHeight)
+    this.setDefaultScale({ withoutSave: true })
+
+    if (this.options.imageUrl) {
+      console.log('options.imageUrl', this.options.imageUrl)
+      await this.importImage({ url: this.options.imageUrl, withoutSave: true })
+    }
+
+    if (this.options.initialStateJSON) {
+      console.log('options.initialStateJSON', this.options.initialStateJSON)
+      this.loadStateFromFullState(this.options.initialStateJSON)
+    }
+
     this.saveState()
   }
 

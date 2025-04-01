@@ -27,5 +27,11 @@ export default {
   resetObjectFitByDoubleClick: true,
 
   // Дефолтный тип скейлинга для объектов (cotain/cover)
-  scaleType: 'contain'
+  scaleType: 'contain',
+
+  // Можно передать JSON объект в виде строки для инициализации редактора
+  initialStateJSON: null,
+
+  // URL изображения
+  imageUrl: null
 }

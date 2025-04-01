@@ -221,8 +221,12 @@ export default ({ fabric, editorOptions }) => ({
    * 'scale-canvas' - Обновляет backstore-резолюцию канваса (масштабирует
    * экспортный размер канваса под размер изображения)
    */
-  async importImage({ url, scale = `image-${editorOptions.scaleType}` }) {
+  async importImage({ url, scale = `image-${editorOptions.scaleType}`, withoutSave = false }) {
     if (!url || typeof url !== 'string') return
+
+    if (withoutSave) {
+      this.skipHistory = true
+    }
 
     try {
       const img = await fabric.FabricImage.fromURL(url, { crossOrigin: 'anonymous' })
@@ -259,6 +263,8 @@ export default ({ fabric, editorOptions }) => ({
       this.canvas.centerObject(img)
       this.canvas.setActiveObject(img)
       this.canvas.renderAll()
+
+      this.skipHistory = false
     } catch (error) {
       console.error('importImage error: ', error)
     }
@@ -461,11 +467,6 @@ export default ({ fabric, editorOptions }) => ({
     const { left, top, width, height } = this.montageArea.getBoundingRect()
 
     this.montageArea.visible = false
-
-    console.log('options', options)
-    console.log('this.canvas', this.canvas)
-
-    console.log('exportCanvasAsImageFile contentType', contentType)
 
     // Вызываем toDataURL с указанием нужной области.
     const dataUrl = this.canvas.toDataURL({
