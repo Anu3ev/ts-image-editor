@@ -19,11 +19,14 @@ class Listeners {
     this.canvas = editor.canvas
     this.options = options
 
+    this.isUndoRedoKeyPressed = false
+
     // Создаем и сохраняем привязанные обработчики, чтобы потом можно было их снять.
     // Глобальные (DOM) события:
     this.handleCopyEventBound = this.handleCopyEvent.bind(this)
     this.handlePasteEventBound = this.handlePasteEvent.bind(this)
     this.handleUndoRedoEventBound = this.handleUndoRedoEvent.bind(this)
+    this.handleUndoRedoKeyUpBound = this.handleUndoRedoKeyUp.bind(this)
     this.handleSelectAllEventBound = this.handleSelectAllEvent.bind(this)
     this.handleDeleteObjectsEventBound = this.handleDeleteObjectsEvent.bind(this)
 
@@ -88,6 +91,8 @@ class Listeners {
 
     if (undoRedoByHotKeys) {
       document.addEventListener('keydown', this.handleUndoRedoEventBound, { capture: true })
+
+      document.addEventListener('keyup', this.handleUndoRedoKeyUpBound, { capture: true })
     }
 
     if (selectAllByHotkey) {
@@ -200,20 +205,32 @@ class Listeners {
    * @param {Boolean} event.metaKey — зажата ли клавиша Cmd (для Mac)
    * @param {String} event.code — код клавиши
    */
-  handleUndoRedoEvent(event) {
-    const { ctrlKey, metaKey, code } = event
+  async handleUndoRedoEvent(event) {
+    const { ctrlKey, metaKey, code, repeat } = event
 
-    if (!ctrlKey && !metaKey) return
+    if ((!ctrlKey && !metaKey) || repeat) return
+
+    if (this.isUndoRedoKeyPressed) return
 
     if (code === 'KeyZ') {
       event.preventDefault()
-      this.editor.undo()
-      return
-    }
-
-    if (code === 'KeyY') {
+      this.isUndoRedoKeyPressed = true
+      await this.editor.undo()
+    } else if (code === 'KeyY') {
       event.preventDefault()
-      this.editor.redo()
+      this.isUndoRedoKeyPressed = true
+      await this.editor.redo()
+    }
+  }
+
+  /**
+   * Обработчик для отпускания клавиш Ctrl+Z/Ctrl+Y.
+   * @param {Object} event — объект события
+   * @param {String} event.code — код клавиши
+   */
+  handleUndoRedoKeyUp({ code }) {
+    if (code === 'KeyZ' || code === 'KeyY') {
+      this.isUndoRedoKeyPressed = false
     }
   }
 
@@ -329,6 +346,7 @@ class Listeners {
     document.removeEventListener('keydown', this.handleCopyEventBound, { capture: true })
     document.removeEventListener('paste', this.handlePasteEventBound, { capture: true })
     document.removeEventListener('keydown', this.handleUndoRedoEventBound, { capture: true })
+    document.removeEventListener('keyup', this.handleUndoRedoKeyUpBound, { capture: true })
     document.removeEventListener('keydown', this.handleSelectAllEventBound, { capture: true })
     document.removeEventListener('keydown', this.handleDeleteObjectsEventBound, { capture: true })
 
