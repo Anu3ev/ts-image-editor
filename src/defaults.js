@@ -1,12 +1,18 @@
 // API Docs: https://fabricjs.com/api/classes/canvas/
 
 export default {
-  // Ширина и высота канваса в пикселях (backstore)
-  width: 800,
-  height: 600,
-  // Отображаемая ширина и высота канваса в пикселях
-  displayWidth: '800px',
-  displayHeight: '600px',
+  // Canvas backstore width and height
+  backstoreWidth: 512,
+  backstoreHeight: 512,
+  // Canvas (upper & lower) CSS width and height
+  canvasDisplayWidth: '100%',
+  canvasDisplayHeight: '100%',
+  // Wrapper CSS width and height
+  canvasWrapperWidth: '100%',
+  canvasWrapperHeight: '100%',
+  // Container CSS width and height
+  editorContainerWidth: 'fit-content',
+  editorContainerHeight: '100%',
   // Cохраняют ли объекты свой текущий порядок (z-index) при выделении
   preserveObjectStacking: true,
 

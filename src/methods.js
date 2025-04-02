@@ -147,38 +147,110 @@ export default ({ fabric, editorOptions }) => ({
   },
 
   /**
- * Устанавливаем CSS ширину канваса для отображения
- * @param {string|number} width
- * @param {object} options
- */
-  setDisplayWidth(width, options = {}) {
-    this.setDisplayDimension('width', width, options)
+   * Устанавливаем CSS ширину канваса для отображения
+   * @param {string|number} width
+   * @fires editor:display-canvas-width-changed
+   */
+  setCanvasDisplayWidth(value) {
+    this.setDisplayDimension({
+      element: 'canvas',
+      dimension: 'width',
+      value
+    })
   },
 
   /**
    * Устанавливаем CSS высоту канваса для отображения
    * @param {string|number} height
-   * @param {object} options
+   * @fires editor:display-canvas-height-changed
    */
-  setDisplayHeight(height, options = {}) {
-    this.setDisplayDimension('height', height, options)
+  setCanvasDisplayHeight(value) {
+    this.setDisplayDimension({
+      element: 'canvas',
+      dimension: 'height',
+      value
+    })
+  },
+
+  /**
+   * Устанавливаем CSS ширину обертки канваса для отображения
+   * @param {string|number} width
+   * @fires editor:display-wrapper-width-changed
+   */
+  setCanvasWrapperWidth(value) {
+    this.setDisplayDimension({
+      element: 'wrapper',
+      dimension: 'width',
+      value
+    })
+  },
+
+  /**
+   * Устанавливаем CSS высоту обертки канваса для отображения
+   * @param {string|number} height
+   * @fires editor:display-wrapper-height-changed
+   */
+  setCanvasWrapperHeight(value) {
+    this.setDisplayDimension({
+      element: 'wrapper',
+      dimension: 'height',
+      value
+    })
+  },
+
+  /**
+   * Устанавливаем CSS ширину контейнера редактора для отображения
+   * @param {string|number} width
+   * @fires editor:display-container-width-changed
+   */
+  setEditorContainerWidth(value) {
+    this.setDisplayDimension({
+      element: 'container',
+      dimension: 'width',
+      value
+    })
+  },
+
+  /**
+   * Устанавливаем CSS высоту контейнера редактора для отображения
+   * @param {string|number} height
+   * @fires editor:display-container-height-changed
+   */
+  setEditorContainerHeight(value) {
+    this.setDisplayDimension({
+      element: 'container',
+      dimension: 'height',
+      value
+    })
   },
 
   /**
    * Устанавливаем CSS ширину или высоту канваса для отображения
-   * @param {('width'|'height')} dimension
-   * @param {string|number} value
-   * @param {object} options
+   * @param {Object} options
+   * @param {String} [options.element] - элемент, для которого устанавливаем размеры:
+   * canvas (upper & lower), wrapper, container
+   * @param {('width'|'height')} [options.dimension]
+   * @param {string|number} [options.value]
+   * @fires editor:display-{element}-{dimension}-changed
    */
-  setDisplayDimension(dimension, value, options = {}) {
+  setDisplayDimension({ element, dimension, value }) {
     if (!value) return
 
-    const canvasElements = [
-      this.canvas.lowerCanvasEl,
-      this.canvas.upperCanvasEl,
-      this.canvas.wrapperEl,
-      editorOptions.editorContainer
-    ]
+    const canvasElements = []
+
+    switch (element) {
+    case 'canvas':
+      canvasElements.push(this.canvas.lowerCanvasEl, this.canvas.upperCanvasEl)
+      break
+    case 'wrapper':
+      canvasElements.push(this.canvas.wrapperEl)
+      break
+    case 'container':
+      canvasElements.push(editorOptions.editorContainer)
+      break
+    default:
+      canvasElements.push(this.canvas.lowerCanvasEl, this.canvas.upperCanvasEl)
+    }
 
     const cssDimension = dimension === 'width' ? 'width' : 'height'
 
@@ -191,24 +263,17 @@ export default ({ fabric, editorOptions }) => ({
 
     // Если число, то добавляем px
     const numericValue = parseFloat(value)
+
     // eslint-disable-next-line no-restricted-globals
     if (isNaN(numericValue)) return
 
-    const currentDimension = parseFloat(this.canvas.lowerCanvasEl.style[cssDimension])
     const newValuePx = `${numericValue}px`
-
     canvasElements.forEach((el) => { el.style[cssDimension] = newValuePx })
 
-    if (options.preserveProportional) {
-      const otherDimension = dimension === 'width' ? 'height' : 'width'
-      const currentOtherDimension = parseFloat(this.canvas.lowerCanvasEl.style[otherDimension])
-      const factor = numericValue / currentDimension
-      const newOtherDimension = currentOtherDimension * factor
-
-      this.setDisplayDimension(otherDimension, newOtherDimension)
-    }
-
-    this.canvas.fire(`editor:display-${cssDimension}-changed`, { [cssDimension]: value })
+    this.canvas.fire(`editor:display-${element}-${cssDimension}-changed`, {
+      element,
+      value
+    })
   },
 
   /**
@@ -707,8 +772,6 @@ export default ({ fabric, editorOptions }) => ({
    */
   async loadStateFromFullState(fullState) {
     if (!fullState) return
-    this.isLoading = true
-
     console.log('loadStateFromFullState fullState', fullState)
 
     await this.canvas.loadFromJSON(fullState)
@@ -717,8 +780,8 @@ export default ({ fabric, editorOptions }) => ({
     if (loadedMontage) {
       this.montageArea = loadedMontage
 
-      this.setResolutionWidth(loadedMontage.width)
-      this.setResolutionHeight(loadedMontage.height)
+      this.setResolutionWidth(loadedMontage.width, { withoutSave: true })
+      this.setResolutionHeight(loadedMontage.height, { withoutSave: true })
 
       const currentZoom = this.canvas.getZoom()
 
@@ -737,7 +800,6 @@ export default ({ fabric, editorOptions }) => ({
     }
 
     this.canvas.renderAll()
-    this.isLoading = false
 
     this.canvas.fire('editor:history-state-loaded')
   },
@@ -747,6 +809,8 @@ export default ({ fabric, editorOptions }) => ({
    * @fires editor:undo
    */
   async undo() {
+    if (this.isLoading) return
+
     const { currentIndex } = this.history
 
     if (currentIndex <= 0) {
@@ -754,16 +818,26 @@ export default ({ fabric, editorOptions }) => ({
       return
     }
 
-    this.history.currentIndex -= 1
-    const fullState = this.getFullState()
-    console.log('image top', fullState.objects[1]?.top)
-    console.log('image left', fullState.objects[1]?.left)
+    this.isLoading = true
+    this.skipHistory = true
 
-    await this.loadStateFromFullState(JSON.stringify(fullState))
+    try {
+      this.history.currentIndex -= 1
+      const fullState = this.getFullState()
+      console.log('image top', fullState.objects[1]?.top)
+      console.log('image left', fullState.objects[1]?.left)
 
-    console.log('Undo выполнен. Текущий индекс истории:', this.history.currentIndex)
+      await this.loadStateFromFullState(JSON.stringify(fullState))
 
-    this.canvas.fire('editor:undo')
+      console.log('Undo выполнен. Текущий индекс истории:', this.history.currentIndex)
+
+      this.canvas.fire('editor:undo')
+    } catch (error) {
+      console.error('undo error', error)
+    } finally {
+      this.isLoading = false
+      this.skipHistory = false
+    }
   },
 
   /**
@@ -771,6 +845,8 @@ export default ({ fabric, editorOptions }) => ({
    * @fires editor:redo
    */
   async redo() {
+    if (this.isLoading) return
+
     const { currentIndex, patches } = this.history
 
     if (currentIndex >= patches.length) {
@@ -778,15 +854,25 @@ export default ({ fabric, editorOptions }) => ({
       return
     }
 
-    this.history.currentIndex += 1
-    const fullState = this.getFullState()
-    console.log('fullState', fullState)
-    console.log('image top', fullState.objects[1]?.top)
-    console.log('image left', fullState.objects[1]?.left)
-    await this.loadStateFromFullState(JSON.stringify(fullState))
-    console.log('Redo выполнен. Текущий индекс истории:', this.history.currentIndex)
+    this.isLoading = true
+    this.skipHistory = true
 
-    this.canvas.fire('editor:redo')
+    try {
+      this.history.currentIndex += 1
+      const fullState = this.getFullState()
+      console.log('fullState', fullState)
+      console.log('image top', fullState.objects[1]?.top)
+      console.log('image left', fullState.objects[1]?.left)
+      await this.loadStateFromFullState(JSON.stringify(fullState))
+      console.log('Redo выполнен. Текущий индекс истории:', this.history.currentIndex)
+
+      this.canvas.fire('editor:redo')
+    } catch (error) {
+      console.error('redo error', error)
+    } finally {
+      this.isLoading = false
+      this.skipHistory = false
+    }
   },
 
   // Дебаунс для снижения частоты сохранения состояния
@@ -989,11 +1075,12 @@ export default ({ fabric, editorOptions }) => ({
    */
   setDefaultScale({ withoutSave } = {}) {
     this.resetZoom()
-    this.setResolutionWidth(editorOptions.width, { withoutSave: true })
-    this.setResolutionHeight(editorOptions.height, { withoutSave: true })
-    this.resetObjects()
+    this.setResolutionWidth(editorOptions.backstoreWidth, { withoutSave: true })
+    this.setResolutionHeight(editorOptions.backstoreHeight, { withoutSave: true })
     centerCanvas(this.canvas, this.montageArea)
     this.canvas.renderAll()
+
+    this.resetObjects()
 
     if (!withoutSave) {
       this.saveState()

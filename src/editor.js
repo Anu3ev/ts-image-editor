@@ -38,8 +38,8 @@ class ImageEditor {
     }
 
     this.montageArea = new fabric.Rect({
-      width: options.width,
-      height: options.height,
+      width: options.backstoreWidth,
+      height: options.backstoreHeight,
       fill: createMosaicPattern(fabric),
       stroke: null,
       strokeWidth: 0,
@@ -60,8 +60,8 @@ class ImageEditor {
 
     // Создаем область для клиппинга (без fill, чтобы не влиял на экспорт)
     const montageAreaClip = new fabric.Rect({
-      width: this.options.width,
-      height: this.options.height,
+      width: this.options.backstoreWidth,
+      height: this.options.backstoreHeight,
       stroke: null,
       strokeWidth: 0,
       selectable: false,
@@ -83,8 +83,12 @@ class ImageEditor {
 
     this.listeners = new Listeners({ editor: this, options: this.options })
 
-    this.setDisplayWidth(this.options.displayWidth)
-    this.setDisplayHeight(this.options.displayHeight)
+    this.setEditorContainerWidth(this.options.editorContainerWidth)
+    this.setEditorContainerHeight(this.options.editorContainerHeight)
+    this.setCanvasWrapperWidth(this.options.canvasWrapperWidth)
+    this.setCanvasWrapperHeight(this.options.canvasWrapperHeight)
+    this.setCanvasDisplayWidth(this.options.canvasDisplayWidth)
+    this.setCanvasDisplayHeight(this.options.canvasDisplayHeight)
     this.setDefaultScale({ withoutSave: true })
 
     if (this.options.imageUrl) {
