@@ -15,22 +15,16 @@ export default {
   editorContainerHeight: '100%',
   // Cохраняют ли объекты свой текущий порядок (z-index) при выделении
   preserveObjectStacking: true,
-
-  defaultScale: 0.7,
-
+  // Возможность взаимодействия с объектом за пределами монтажной области
+  controlsAboveOverlay: true,
+  // Зум по центру
   centeredScaling: true,
+  // Поворот объекта по центру
   centeredRotation: true,
 
-  // Кастомные опции
-  bringToFrontOnSelection: false,
-  mouseWheelZooming: true,
-  canvasDragging: false,
-  copyObjectsByHotkey: true,
-  pasteImageFromClipboard: true,
-  undoRedoByHotKeys: true,
-  selectAllByHotkey: true,
-  deleteObjectsByHotkey: true,
-  resetObjectFitByDoubleClick: true,
+  /*
+  * Кастомные опции
+  */
 
   // Дефолтный тип скейлинга для объектов (cotain/cover)
   scaleType: 'contain',
@@ -39,5 +33,26 @@ export default {
   initialStateJSON: null,
 
   // URL изображения
-  imageUrl: null
+  imageUrl: null,
+
+  // Дефолтный масштаб
+  defaultScale: 0.7,
+  // Поднимать объект на передний план по оси Z при выделении
+  bringToFrontOnSelection: false,
+  // Зум по колесику мыши
+  mouseWheelZooming: true,
+  // Перемещение канваса при зажатой кнопке ALT
+  canvasDragging: false,
+  // Копирование объектов (Ctrl + C, Ctrl + V)
+  copyObjectsByHotkey: true,
+  // Вставка изображения из буфера обмена
+  pasteImageFromClipboard: true,
+  // Отмена/повтор действия по сочетанию клавиш (Ctrl + Z, Ctrl + Y)
+  undoRedoByHotKeys: true,
+  // Выделение всех объектов по сочетанию клавиш (Ctrl + A)
+  selectAllByHotkey: true,
+  // Удаление объектов по сочетанию клавиш (Delete)
+  deleteObjectsByHotkey: true,
+  // Сброс параметров объекта по двойному клику
+  resetObjectFitByDoubleClick: true
 }
