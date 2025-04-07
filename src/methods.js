@@ -1,4 +1,6 @@
 import { nanoid } from 'nanoid'
+import { jsPDF as JsPDF } from 'jspdf'
+
 import {
   MIN_ZOOM_RATIO,
   MAX_ZOOM_RATIO,
@@ -510,6 +512,10 @@ export default ({ fabric, editorOptions }) => ({
       exportAsBase64 = false
     } = options
 
+    const idPDF = contentType === 'application/pdf'
+    // Если это PDF, то дальше нам нужен будет JPEG
+    const adjustedContentType = idPDF ? 'image/jpeg' : contentType
+
     // Сброс активного объекта и ререндер
     this.canvas.discardActiveObject()
     this.canvas.renderAll()
@@ -519,7 +525,7 @@ export default ({ fabric, editorOptions }) => ({
 
     // Если экспортируем JPEG, временно задаем белый фон (если его ещё нет)
     const savedBackground = this.canvas.backgroundColor
-    if (contentType === 'image/jpeg') {
+    if (adjustedContentType === 'image/jpeg') {
       this.canvas.backgroundColor = '#ffffff'
     }
 
@@ -535,7 +541,7 @@ export default ({ fabric, editorOptions }) => ({
 
     // Вызываем toDataURL с указанием нужной области.
     const dataUrl = this.canvas.toDataURL({
-      format: contentType.split('/')[1],
+      format: adjustedContentType.split('/')[1],
       left,
       top,
       width,
@@ -548,8 +554,35 @@ export default ({ fabric, editorOptions }) => ({
     this.canvas.backgroundColor = savedBackground
     this.canvas.renderAll()
 
+    if (idPDF) {
+      const pxToMm = 0.264583 // коэффициент перевода пикселей в миллиметры (при 96 DPI)
+      const pdfWidth = width * pxToMm
+      const pdfHeight = height * pxToMm
+
+      const pdf = new JsPDF({
+        orientation: pdfWidth > pdfHeight ? 'landscape' : 'portrait',
+        unit: 'mm',
+        format: [pdfWidth, pdfHeight]
+      })
+
+      // Добавляем изображение в PDF. Используем формат PNG для изображения
+      pdf.addImage(dataUrl, 'JPEG', 0, 0, pdfWidth, pdfHeight)
+
+      if (exportAsBase64) {
+        const pdfBase64 = pdf.output('datauristring')
+        this.canvas.fire('editor:canvas-exported', pdfBase64)
+        return pdfBase64
+      }
+
+      // Получаем Blob из PDF и создаем File
+      const pdfBlob = pdf.output('blob')
+      const pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' })
+      this.canvas.fire('editor:canvas-exported', { image: pdfFile })
+      return pdfFile
+    }
+
     if (exportAsBase64) {
-      this.canvas.fire('editor:canvas-exported', { image: dataUrl })
+      this.canvas.fire('editor:canvas-exported', dataUrl)
 
       return dataUrl
     }
@@ -557,7 +590,7 @@ export default ({ fabric, editorOptions }) => ({
     // Преобразуем dataUrl в Blob и затем в File
     const blob = await (await fetch(dataUrl)).blob()
 
-    const file = new File([blob], fileName, { type: contentType })
+    const file = new File([blob], fileName, { type: adjustedContentType })
     this.canvas.fire('editor:canvas-exported', { image: file })
 
     return file
