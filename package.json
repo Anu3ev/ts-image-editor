@@ -29,6 +29,7 @@
     "eslint-plugin-sort-keys-fix": "^1.1.2",
     "fabric": "^6.5.3",
     "jsondiffpatch": "^0.6.0",
+    "jspdf": "^3.0.1",
     "nanoid": "^5.0.9",
     "vue-eslint-parser": "^9.4.3"
   }
