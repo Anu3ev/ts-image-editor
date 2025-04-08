@@ -91,9 +91,15 @@ class ImageEditor {
     this.setCanvasDisplayHeight(this.options.canvasDisplayHeight)
     this.setDefaultScale({ withoutSave: true })
 
-    if (this.options.imageUrl) {
-      console.log('options.imageUrl', this.options.imageUrl)
-      await this.importImage({ url: this.options.imageUrl, withoutSave: true })
+    if (this.options.initialImage?.url) {
+      const {
+        url,
+        scaleType = 'scale-canvas',
+        withoutSave = true
+      } = this.options.initialImage
+
+      console.log('this.options.initialImage?.imageUrl', url)
+      await this.importImage({ url, scale: scaleType, withoutSave })
     }
 
     if (this.options.initialStateJSON) {

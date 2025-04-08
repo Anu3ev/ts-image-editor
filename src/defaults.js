@@ -32,8 +32,13 @@ export default {
   // Можно передать JSON объект в виде строки для инициализации редактора
   initialStateJSON: null,
 
-  // URL изображения
-  imageUrl: null,
+  /*
+  * Объект изображения с которым редактор будет инициализирован. Может содержать:
+  *  - {String} url - URL изображения (обязательный)
+  *  - {String} scaleType - Тип скейлинга (contain/cover/scale-canvas)
+  *  - {Boolean} withoutSave - Не сохранять состояние редактора (по умолчанию false)
+  */
+  initialImage: null,
 
   // Дефолтный масштаб
   defaultScale: 0.7,

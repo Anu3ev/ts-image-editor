@@ -14,7 +14,6 @@ import {
 
 import {
   calculateScaleFactor,
-  calculateCanvasMultiplier,
   centerCanvas,
   diffPatcher
 } from './helpers'
@@ -304,12 +303,7 @@ export default ({ fabric, editorOptions }) => ({
       const { width: imageWidth, height: imageHeight } = img
 
       if (scale === 'scale-canvas') {
-        const multiplier = calculateCanvasMultiplier({ montageArea: this.montageArea, imageObject: img })
-
-        // Если multiplier больше 1, то изображение больше канваса по хотя бы одной оси
-        if (multiplier > 1) {
-          this.scaleCanvasToImage({ object: img })
-        }
+        this.scaleCanvasToImage({ object: img })
       } else {
         const scaleFactor = calculateScaleFactor({ montageArea: this.montageArea, imageObject: img, scaleType: scale })
 
