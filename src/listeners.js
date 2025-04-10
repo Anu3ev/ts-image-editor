@@ -23,6 +23,7 @@ class Listeners {
 
     // Создаем и сохраняем привязанные обработчики, чтобы потом можно было их снять.
     // Глобальные (DOM) события:
+    this.handleAdaptCanvasToContainerBound = this.editor.debounce(this.handleAdaptCanvasToContainer.bind(this), 500)
     this.handleCopyEventBound = this.handleCopyEvent.bind(this)
     this.handlePasteEventBound = this.handlePasteEvent.bind(this)
     this.handleUndoRedoEventBound = this.handleUndoRedoEvent.bind(this)
@@ -46,6 +47,7 @@ class Listeners {
    */
   init() {
     const {
+      adaptCanvasToContainer,
       canvasDragging,
       mouseWheelZooming,
       bringToFrontOnSelection,
@@ -64,12 +66,10 @@ class Listeners {
       this.canvas.on('mouse:up', this.handleCanvasDragEndBound)
     }
 
-    // Зум колесом мыши
     if (mouseWheelZooming) {
       this.canvas.on('mouse:wheel', this.handleMouseWheelZoomBound)
     }
 
-    // bringToFront при выборе объекта
     if (bringToFrontOnSelection) {
       this.canvas.on('selection:created', this.handleBringToFrontBound)
       this.canvas.on('selection:updated', this.handleBringToFrontBound)
@@ -80,7 +80,10 @@ class Listeners {
     }
 
     // Подключаем глобальные DOM-события:
-    // Копирование объектов сочетанием клавиш
+    if (adaptCanvasToContainer) {
+      window.addEventListener('resize', this.handleAdaptCanvasToContainerBound, { capture: true })
+    }
+
     if (copyObjectsByHotkey) {
       document.addEventListener('keydown', this.handleCopyEventBound, { capture: true })
     }
@@ -139,6 +142,22 @@ class Listeners {
   }
 
   // --- Глобальные DOM-обработчики ---
+
+  /**
+   * Обработчик изменения размеров окна браузера.
+   * Адаптирует канвас к размерам контейнера.
+   */
+  handleAdaptCanvasToContainer() {
+    const { width, height } = this.editor.montageArea
+
+    // Заново адаптируем канвас к контейнеру
+    this.editor.setResolutionWidth(width, { adaptCanvasToContainer: true, withoutSave: true })
+    this.editor.setResolutionHeight(height, { adaptCanvasToContainer: true, withoutSave: true })
+
+    // Центрируем и масштабируем монтажную область
+    this.editor.centerMontageArea()
+    this.editor.resetObjects()
+  }
 
   /**
    * Обработчик для Ctrl+C (копирование).
@@ -343,6 +362,7 @@ class Listeners {
    */
   destroy() {
     // Глобальные DOM-обработчики
+    window.removeEventListener('resize', this.handleAdaptCanvasToContainerBound, { capture: true })
     document.removeEventListener('keydown', this.handleCopyEventBound, { capture: true })
     document.removeEventListener('paste', this.handlePasteEventBound, { capture: true })
     document.removeEventListener('keydown', this.handleUndoRedoEventBound, { capture: true })

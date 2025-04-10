@@ -2,8 +2,9 @@ import { nanoid } from 'nanoid'
 import { jsPDF as JsPDF } from 'jspdf'
 
 import {
-  MIN_ZOOM_RATIO,
-  MAX_ZOOM_RATIO,
+  MIN_ZOOM,
+  MAX_ZOOM,
+  MAX_ZOOM_FACTOR,
   DEFAULT_ZOOM_RATIO,
   ROTATE_RATIO,
   CANVAS_MIN_WIDTH,
@@ -38,14 +39,21 @@ export default ({ fabric, editorOptions }) => ({
   setResolutionWidth(width, options = {}) {
     if (!width) return
 
-    const { preserveProportional, withoutSave } = options
+    const { preserveProportional, withoutSave, adaptCanvasToContainer } = options
     const { width: montageAreaWidth, height: montageAreaHeight } = this.montageArea
 
-    let adjustedWidth = Number(width)
-    if (adjustedWidth < CANVAS_MIN_WIDTH) adjustedWidth = CANVAS_MIN_WIDTH
-    if (adjustedWidth > CANVAS_MAX_WIDTH) adjustedWidth = CANVAS_MAX_WIDTH
+    const adjustedWidth = Number(Math.max(Math.min(width, CANVAS_MAX_WIDTH), CANVAS_MIN_WIDTH))
 
-    this.canvas.setDimensions({ width: adjustedWidth }, { backstoreOnly: true })
+    const { canvasBackstoreWidth } = editorOptions
+
+    // Если ширина канваса не задана или равна 'auto', адаптируем канвас к контейнеру
+    if (!canvasBackstoreWidth || canvasBackstoreWidth === 'auto' || adaptCanvasToContainer) {
+      this.adaptCanvasToContainer()
+    } else if (canvasBackstoreWidth) {
+      this.setCanvasBackstoreWidth(canvasBackstoreWidth)
+    } else {
+      this.setCanvasBackstoreWidth(adjustedWidth)
+    }
 
     // Обновляем размеры montageArea и clipPath
     this.montageArea.set({ width: adjustedWidth })
@@ -60,8 +68,9 @@ export default ({ fabric, editorOptions }) => ({
       return
     }
 
-    const currentZoom = this.canvas.getZoom()
     const { left, top } = this.getObjectDefaultCoords(this.montageArea)
+
+    const currentZoom = this.canvas.getZoom()
 
     this.canvas.setViewportTransform([currentZoom, 0, 0, currentZoom, left, top])
 
@@ -86,14 +95,20 @@ export default ({ fabric, editorOptions }) => ({
   setResolutionHeight(height, options = {}) {
     if (!height) return
 
-    const { preserveProportional, withoutSave } = options
+    const { preserveProportional, withoutSave, adaptCanvasToContainer } = options
     const { width: montageAreaWidth, height: montageAreaHeight } = this.montageArea
 
-    let adjustedHeight = Number(height)
-    if (adjustedHeight < CANVAS_MIN_HEIGHT) adjustedHeight = CANVAS_MIN_HEIGHT
-    if (adjustedHeight > CANVAS_MAX_HEIGHT) adjustedHeight = CANVAS_MAX_HEIGHT
+    const adjustedHeight = Number(Math.max(Math.min(height, CANVAS_MAX_HEIGHT), CANVAS_MIN_HEIGHT))
 
-    this.canvas.setDimensions({ height: adjustedHeight }, { backstoreOnly: true })
+    const { canvasBackstoreHeight } = editorOptions
+
+    if (!canvasBackstoreHeight || canvasBackstoreHeight === 'auto' || adaptCanvasToContainer) {
+      this.adaptCanvasToContainer()
+    } else if (canvasBackstoreHeight) {
+      this.setCanvasBackstoreHeight(canvasBackstoreHeight)
+    } else {
+      this.setCanvasBackstoreHeight(adjustedHeight)
+    }
 
     // Обновляем размеры montageArea и clipPath
     this.montageArea.set({ height: adjustedHeight })
@@ -109,19 +124,55 @@ export default ({ fabric, editorOptions }) => ({
       return
     }
 
-    const currentZoom = this.canvas.getZoom()
     const { left, top } = this.getObjectDefaultCoords(this.montageArea)
 
+    const currentZoom = this.canvas.getZoom()
     this.canvas.setViewportTransform([currentZoom, 0, 0, currentZoom, left, top])
 
     // Центрируем clipPath и монтажную область относительно новых размеров
-    centerCanvas(this.canvas, this.montageArea)
+    // centerCanvas(this.canvas, this.montageArea)
+
+    this.centerMontageArea()
 
     if (!withoutSave) {
       this.saveState()
     }
 
     this.canvas?.fire('editor:resolution-height-changed', { height })
+  },
+
+  /**
+   * Центрирует монтажную область и ClipPath точно по центру канваса
+   * и устанавливает правильный viewportTransform.
+   */
+  centerMontageArea() {
+    const canvasWidth = this.canvas.getWidth()
+    const canvasHeight = this.canvas.getHeight()
+
+    const currentZoom = this.canvas.getZoom()
+
+    const centerCanvasPoint = new fabric.Point(canvasWidth / 2, canvasHeight / 2)
+
+    // Устанавливаем origin монтажной области в центр канваса без зума
+    this.montageArea.set({
+      left: canvasWidth / 2,
+      top: canvasHeight / 2
+    })
+
+    this.canvas.clipPath.set({
+      left: canvasWidth / 2,
+      top: canvasHeight / 2
+    })
+
+    this.canvas.renderAll()
+
+    // Заново устанавливаем viewportTransform, чтобы монтажная область была точно по центру с учётом зума
+    const vpt = this.canvas.viewportTransform
+    vpt[4] = canvasWidth / 2 - centerCanvasPoint.x * currentZoom
+    vpt[5] = canvasHeight / 2 - centerCanvasPoint.y * currentZoom
+
+    this.canvas.setViewportTransform(vpt)
+    this.canvas.renderAll()
   },
 
   /**
@@ -147,12 +198,42 @@ export default ({ fabric, editorOptions }) => ({
     return { left, top }
   },
 
+  setCanvasBackstoreWidth(width) {
+    if (!width || typeof width !== 'number') return
+
+    const adjustedWidth = Math.max(Math.min(width, CANVAS_MAX_WIDTH), CANVAS_MIN_WIDTH)
+
+    this.canvas.setDimensions({ width: adjustedWidth }, { backstoreOnly: true })
+  },
+
+  setCanvasBackstoreHeight(height) {
+    if (!height || typeof height !== 'number') return
+
+    const adjustedHeight = Math.max(Math.min(height, CANVAS_MAX_HEIGHT), CANVAS_MIN_HEIGHT)
+
+    this.canvas.setDimensions({ height: adjustedHeight }, { backstoreOnly: true })
+  },
+
+  adaptCanvasToContainer() {
+    const container = this.canvas.editorContainer
+    const cw = container.clientWidth
+    const ch = container.clientHeight
+
+    const width = Math.max(Math.min(cw, CANVAS_MAX_WIDTH), CANVAS_MIN_WIDTH)
+    const height = Math.max(Math.min(ch, CANVAS_MAX_HEIGHT), CANVAS_MIN_HEIGHT)
+
+    console.log('adaptCanvasToContainer newWidth', width)
+    console.log('adaptCanvasToContainer newHeight', height)
+
+    this.canvas.setDimensions({ width, height }, { backstoreOnly: true })
+  },
+
   /**
    * Устанавливаем CSS ширину канваса для отображения
    * @param {string|number} width
    * @fires editor:display-canvas-width-changed
    */
-  setCanvasDisplayWidth(value) {
+  setCanvasCSSWidth(value) {
     this.setDisplayDimension({
       element: 'canvas',
       dimension: 'width',
@@ -165,7 +246,7 @@ export default ({ fabric, editorOptions }) => ({
    * @param {string|number} height
    * @fires editor:display-canvas-height-changed
    */
-  setCanvasDisplayHeight(value) {
+  setCanvasCSSHeight(value) {
     this.setDisplayDimension({
       element: 'canvas',
       dimension: 'height',
@@ -284,7 +365,7 @@ export default ({ fabric, editorOptions }) => ({
    * @param {String} [options.scale] - Если размеры изображения больше размеров канваса, то как масштабировать:
    * 'image-contain' - скейлит картинку, чтобы она вмещалась
    * 'image-cover' - скейлит картинку, чтобы она вписалась в размер канвас
-   * 'scale-canvas' - Обновляет backstore-резолюцию канваса (масштабирует
+   * 'scale-montage' - Обновляет backstore-резолюцию монтажной области (масштабирует
    * экспортный размер канваса под размер изображения)
    */
   async importImage({ url, scale = `image-${editorOptions.scaleType}`, withoutSave = false }) {
@@ -302,8 +383,8 @@ export default ({ fabric, editorOptions }) => ({
 
       const { width: imageWidth, height: imageHeight } = img
 
-      if (scale === 'scale-canvas') {
-        this.scaleCanvasToImage({ object: img })
+      if (scale === 'scale-montage') {
+        this.scaleMontageAreaToImage({ object: img, withoutSave })
       } else {
         const scaleFactor = calculateScaleFactor({ montageArea: this.montageArea, imageObject: img, scaleType: scale })
 
@@ -444,41 +525,40 @@ export default ({ fabric, editorOptions }) => ({
    * @param {Boolean} [options.withoutSave] - Не сохранять состояние
    * @fires editor:canvas-scaled
    */
-  scaleCanvasToImage(options = {}) {
-    const { object, withoutSave } = options
+  scaleMontageAreaToImage(options = {}) {
+    const { object, preserveAspectRatio, withoutSave } = options
 
     const image = object || this.canvas.getActiveObject()
 
     if (!image || image.type !== 'image') return
 
-    const { width: imageWidth, height: imageHeight } = image
+    let { width: imageWidth, height: imageHeight } = image
 
-    if (
-      (imageHeight < CANVAS_MIN_HEIGHT || imageHeight > CANVAS_MAX_HEIGHT)
-      || (imageWidth < CANVAS_MIN_WIDTH || imageWidth > CANVAS_MAX_WIDTH)
-    ) {
-      console.error(`scaleCanvasToImage. Image size is out of canvas bounds:
-        min: ${CANVAS_MIN_WIDTH}x${CANVAS_MIN_HEIGHT},
-        max: ${CANVAS_MAX_WIDTH}x${CANVAS_MAX_HEIGHT}`)
+    imageWidth = Math.max(Math.min(imageWidth, CANVAS_MAX_WIDTH), CANVAS_MIN_WIDTH)
+    imageHeight = Math.max(Math.min(imageHeight, CANVAS_MAX_HEIGHT), CANVAS_MIN_HEIGHT)
 
-      return
+    let newCanvasWidth = imageWidth
+    let newCanvasHeight = imageHeight
+
+    if (preserveAspectRatio) {
+      const { width: montageAreaWidth, height: montageAreaHeight } = this.montageArea
+
+      const widthMultiplier = imageWidth / montageAreaWidth
+      const heightMultiplier = imageHeight / montageAreaHeight
+
+      const multiplier = Math.max(widthMultiplier, heightMultiplier)
+
+      newCanvasWidth = montageAreaWidth * multiplier
+      newCanvasHeight = montageAreaHeight * multiplier
     }
 
-    const { width: montageAreaWidth, height: montageAreaHeight } = this.montageArea
-
-    const widthMultiplier = imageWidth / montageAreaWidth
-    const heightMultiplier = imageHeight / montageAreaHeight
-
-    const multiplier = Math.max(widthMultiplier, heightMultiplier)
-
-    const newCanvasWidth = montageAreaWidth * multiplier
-    const newCanvasHeight = montageAreaHeight * multiplier
-
-    this.resetZoom()
     this.setResolutionWidth(newCanvasWidth, { withoutSave: true })
     this.setResolutionHeight(newCanvasHeight, { withoutSave: true })
-    this.resetObject(image)
 
+    const { montageAreaWidth, montageAreaHeight } = editorOptions
+    this.calculateAndApplyDefaultZoom(montageAreaWidth, montageAreaHeight)
+
+    this.resetObject(image)
     this.canvas.centerObject(image)
     this.canvas.renderAll()
 
@@ -525,13 +605,15 @@ export default ({ fabric, editorOptions }) => ({
 
     // Сбрасываем viewportTransform, чтобы экспортировать содержимое в координатах канваса без зума
     this.canvas.viewportTransform = [1, 0, 0, 1, 0, 0]
-
     this.canvas.renderAll()
+
+    // Пересчитываем координаты монтажной области:
+    this.montageArea.setCoords()
 
     // Получаем координаты монтажной области.
     const { left, top, width, height } = this.montageArea.getBoundingRect()
-
     this.montageArea.visible = false
+    this.canvas.renderAll()
 
     // Вызываем toDataURL с указанием нужной области.
     const dataUrl = this.canvas.toDataURL({
@@ -810,20 +892,7 @@ export default ({ fabric, editorOptions }) => ({
       this.setResolutionWidth(loadedMontage.width, { withoutSave: true })
       this.setResolutionHeight(loadedMontage.height, { withoutSave: true })
 
-      const currentZoom = this.canvas.getZoom()
-
-      const { width, height } = this.montageArea
-      const relativeLeft = (width - (width * currentZoom)) / 2
-      const relativeTop = (height - (height * currentZoom)) / 2
-
-      this.canvas.setViewportTransform([
-        currentZoom,
-        0,
-        0,
-        currentZoom,
-        relativeLeft,
-        relativeTop
-      ])
+      this.centerMontageArea()
     }
 
     this.canvas.renderAll()
@@ -1025,6 +1094,34 @@ export default ({ fabric, editorOptions }) => ({
   },
 
   /**
+   * Метод рассчитывает дефолтный, максимальный, и минимальный зум таким образом,
+   * чтобы монтажная область визуально занимала переданные размеры.
+   * Если размеры не переданы, то используются дефолтные размеры монтажной области переданные в editorOptions.
+   */
+  calculateAndApplyDefaultZoom(width, height) {
+    const visualWidth = width || editorOptions.montageAreaWidth
+    const visualHeight = height || editorOptions.montageAreaHeight
+
+    const { width: montageWidth, height: montageHeight } = this.montageArea
+
+    const scaleX = visualWidth / montageWidth
+    const scaleY = visualHeight / montageHeight
+
+    // выбираем меньший зум, чтобы монтажная область целиком помещалась
+    const defaultZoom = Math.min(scaleX, scaleY)
+
+    // устанавливаем допустимые пределы зума
+    this.minZoom = Math.min(defaultZoom / MAX_ZOOM_FACTOR, MIN_ZOOM)
+    this.maxZoom = Math.max(defaultZoom * MAX_ZOOM_FACTOR, MAX_ZOOM)
+
+    // запоминаем дефолтный зум
+    this.defaultZoom = defaultZoom
+
+    // применяем дефолтный зум
+    this.setZoom(defaultZoom)
+  },
+
+  /**
    * Увеличение/уменьшение масштаба
    * @param {Number} scale - Шаг зума
    * @param {Object} options - Координаты зума (по умолчанию центр канваса)
@@ -1036,14 +1133,18 @@ export default ({ fabric, editorOptions }) => ({
   zoom(scale = DEFAULT_ZOOM_RATIO, options = {}) {
     if (!scale) return
 
+    const { minZoom, maxZoom } = this
+
     const currentZoom = this.canvas.getZoom()
     const pointX = options.pointX ?? this.canvas.getWidth() / 2
     const pointY = options.pointY ?? this.canvas.getHeight() / 2
 
-    let zoom = currentZoom + Number(scale)
+    let zoom = Number((currentZoom + Number(scale)).toFixed(2))
 
-    if (zoom > MAX_ZOOM_RATIO) zoom = MAX_ZOOM_RATIO
-    if (zoom < MIN_ZOOM_RATIO) zoom = MIN_ZOOM_RATIO
+    if (zoom > maxZoom) zoom = maxZoom
+    if (zoom < minZoom) zoom = minZoom
+
+    console.log('currentZoom', currentZoom)
 
     this.canvas.zoomToPoint({ x: Number(pointX), y: Number(pointY) }, zoom)
 
@@ -1060,14 +1161,16 @@ export default ({ fabric, editorOptions }) => ({
    * @param {Number} zoom - Зум
    * @fires editor:zoom-changed
    */
-  setZoom(zoom = editorOptions.defaultScale) {
+  setZoom(zoom = this.defaultZoom) {
     const pointX = this.canvas.getWidth() / 2
     const pointY = this.canvas.getHeight() / 2
 
     let newZoom = zoom
 
-    if (zoom > MAX_ZOOM_RATIO) newZoom = MAX_ZOOM_RATIO
-    if (zoom < MIN_ZOOM_RATIO) newZoom = MIN_ZOOM_RATIO
+    const { minZoom, maxZoom } = this
+
+    if (zoom > maxZoom) newZoom = maxZoom
+    if (zoom < minZoom) newZoom = minZoom
 
     this.canvas.zoomToPoint({ x: Number(pointX), y: Number(pointY) }, newZoom)
 
@@ -1087,9 +1190,7 @@ export default ({ fabric, editorOptions }) => ({
     const pointX = this.canvas.getWidth() / 2
     const pointY = this.canvas.getHeight() / 2
 
-    const { defaultScale = 1 } = editorOptions
-
-    this.canvas.zoomToPoint({ x: Number(pointX), y: Number(pointY) }, defaultScale)
+    this.canvas.zoomToPoint({ x: Number(pointX), y: Number(pointY) }, this.defaultZoom)
 
     this.canvas.fire('editor:zoom-changed', { currentZoom: this.canvas.getZoom() })
   },
@@ -1102,8 +1203,8 @@ export default ({ fabric, editorOptions }) => ({
    */
   setDefaultScale({ withoutSave } = {}) {
     this.resetZoom()
-    this.setResolutionWidth(editorOptions.backstoreWidth, { withoutSave: true })
-    this.setResolutionHeight(editorOptions.backstoreHeight, { withoutSave: true })
+    this.setResolutionWidth(editorOptions.montageAreaWidth, { withoutSave: true })
+    this.setResolutionHeight(editorOptions.montageAreaHeight, { withoutSave: true })
     centerCanvas(this.canvas, this.montageArea)
     this.canvas.renderAll()
 
