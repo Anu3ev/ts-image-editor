@@ -4,6 +4,11 @@ import methods from './methods'
 import Listeners from './listeners'
 
 import {
+  MIN_ZOOM,
+  MAX_ZOOM
+} from './constants'
+
+import {
   createMosaicPattern
 } from './helpers'
 
@@ -12,6 +17,7 @@ import {
 // TODO: Кастомные стили
 // TODO: Добавление текста
 // TODO: drag'n'drop картинки
+// TODO: Сделать снэп (прилипание к краям и центру)
 
 /**
  * Класс редактора изображений.
@@ -19,6 +25,7 @@ import {
  * @param {string} canvasId - идентификатор канваса
  * @param {object} options - опции и настройки
  *
+ * @fires {object} editor:render-complete - событие, которое срабатывает после завершения рендеринга редактора
  */
 class ImageEditor {
   constructor(canvasId, options = {}) {
@@ -32,14 +39,21 @@ class ImageEditor {
     this.history = {
       // Базовое состояние от которого будет строиться история
       baseState: null,
-      patches: [], // Массив диффов (каждый дифф – результат jsondiffpatch.diff(prevState, nextState))
-      currentIndex: 0, // Текущая позиция в истории (0 означает базовое состояние)
-      maxHistoryLength: 50 // Максимальное количество сохранённых диффов
+      // Массив диффов (каждый дифф – результат jsondiffpatch.diff(prevState, nextState))
+      patches: [],
+      // Текущая позиция в истории (0 означает базовое состояние)
+      currentIndex: 0,
+      // Максимальное количество сохранённых диффов
+      maxHistoryLength: 50
     }
 
+    this.defaultZoom = options.defaultScale
+    this.minZoom = MIN_ZOOM
+    this.maxZoom = MAX_ZOOM
+
     this.montageArea = new fabric.Rect({
-      width: options.backstoreWidth,
-      height: options.backstoreHeight,
+      width: options.montageAreaWidth,
+      height: options.montageAreaWidth,
       fill: createMosaicPattern(fabric),
       stroke: null,
       strokeWidth: 0,
@@ -60,8 +74,8 @@ class ImageEditor {
 
     // Создаем область для клиппинга (без fill, чтобы не влиял на экспорт)
     const montageAreaClip = new fabric.Rect({
-      width: this.options.backstoreWidth,
-      height: this.options.backstoreHeight,
+      width: this.options.montageAreaWidth,
+      height: this.options.montageAreaWidth,
       stroke: null,
       strokeWidth: 0,
       selectable: false,
@@ -87,19 +101,20 @@ class ImageEditor {
     this.setEditorContainerHeight(this.options.editorContainerHeight)
     this.setCanvasWrapperWidth(this.options.canvasWrapperWidth)
     this.setCanvasWrapperHeight(this.options.canvasWrapperHeight)
-    this.setCanvasDisplayWidth(this.options.canvasDisplayWidth)
-    this.setCanvasDisplayHeight(this.options.canvasDisplayHeight)
-    this.setDefaultScale({ withoutSave: true })
+    this.setCanvasCSSWidth(this.options.canvasCSSWidth)
+    this.setCanvasCSSHeight(this.options.canvasCSSHeight)
 
     if (this.options.initialImage?.url) {
       const {
         url,
-        scaleType = 'scale-canvas',
+        scaleType = 'scale-montage',
         withoutSave = true
       } = this.options.initialImage
 
       console.log('this.options.initialImage?.imageUrl', url)
       await this.importImage({ url, scale: scaleType, withoutSave })
+    } else {
+      this.setDefaultScale({ withoutSave: true })
     }
 
     if (this.options.initialStateJSON) {
@@ -108,6 +123,8 @@ class ImageEditor {
     }
 
     this.saveState()
+
+    this.canvas.fire('editor:render-complete', this)
   }
 
   /**

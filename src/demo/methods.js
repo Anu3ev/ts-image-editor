@@ -3,6 +3,10 @@ function getCanvasResolution(editorInstance) {
   return `${editorInstance.canvas.getWidth()}x${editorInstance.canvas.getHeight()}`
 }
 
+function getMontageAreaResolution(editorInstance) {
+  return `${editorInstance.montageArea.width}x${editorInstance.montageArea.height}`
+}
+
 // Получение отображемых размеров канваса
 function getCanvasDisplaySize(editorInstance) {
   return `${editorInstance.canvas?.lowerCanvasEl?.style.width}/${editorInstance.canvas?.lowerCanvasEl?.style.height}`
@@ -53,6 +57,7 @@ async function saveResult(editorInstance) {
 
 export {
   getCanvasResolution,
+  getMontageAreaResolution,
   getCanvasDisplaySize,
   getCurrentObjectData,
   importImage,

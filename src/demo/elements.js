@@ -61,6 +61,9 @@ export const scaleCanvasToImageBtn = document.getElementById('scale-canvas-btn')
 
 // Элемент для отображения разрешения канваса
 export const canvasResolutionNode = document.getElementById('canvas-resolution')
+
+export const montageAreaResolutionNode = document.getElementById('montage-area-resolution')
+
 // Элемент для отображения размера канваса
 export const canvasDisplaySizeNode = document.getElementById('canvas-display-size')
 // Элемент для отображения размера текущего объекта

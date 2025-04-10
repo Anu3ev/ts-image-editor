@@ -1,12 +1,16 @@
 // API Docs: https://fabricjs.com/api/classes/canvas/
 
 export default {
+  // Canvas Montage Area width and height
+  montageAreaWidth: 512,
+  montageAreaHeight: 512,
+
   // Canvas backstore width and height
-  backstoreWidth: 512,
-  backstoreHeight: 512,
+  canvasBackstoreWidth: 'auto',
+  canvasBackstoreHeight: 'auto',
   // Canvas (upper & lower) CSS width and height
-  canvasDisplayWidth: '100%',
-  canvasDisplayHeight: '100%',
+  canvasCSSWidth: '100%',
+  canvasCSSHeight: '100%',
   // Wrapper CSS width and height
   canvasWrapperWidth: '100%',
   canvasWrapperHeight: '100%',
@@ -35,13 +39,16 @@ export default {
   /*
   * Объект изображения с которым редактор будет инициализирован. Может содержать:
   *  - {String} url - URL изображения (обязательный)
-  *  - {String} scaleType - Тип скейлинга (contain/cover/scale-canvas)
+  *  - {String} scaleType - Тип скейлинга (contain/cover/scale-montage)
   *  - {Boolean} withoutSave - Не сохранять состояние редактора (по умолчанию false)
   */
   initialImage: null,
 
   // Дефолтный масштаб
   defaultScale: 0.7,
+
+  // Адаптировать канвас при изменении размеров контейнера (например, при изменении размеров окна браузера)
+  adaptCanvasToContainer: true,
   // Поднимать объект на передний план по оси Z при выделении
   bringToFrontOnSelection: false,
   // Зум по колесику мыши
