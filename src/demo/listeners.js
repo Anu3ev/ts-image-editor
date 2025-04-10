@@ -45,6 +45,8 @@ import {
   scaleCanvasToImageBtn,
   // Элемент для отображения разрешения канваса
   canvasResolutionNode,
+  // Элемент для отображения разрешения монтажной области
+  montageAreaResolutionNode,
   // Элемент для отображения размера канваса
   canvasDisplaySizeNode,
   // Элемент для отображения размера текущего объекта
@@ -60,6 +62,7 @@ import {
 
 import {
   getCanvasResolution,
+  getMontageAreaResolution,
   getCanvasDisplaySize,
   getCurrentObjectData,
   importImage,
@@ -69,7 +72,7 @@ import {
 export default (editorInstance) => {
   // Scale canvas
   scaleCanvasToImageBtn.addEventListener('click', () => {
-    editorInstance.scaleCanvasToImage()
+    editorInstance.scaleMontageAreaToImage()
   })
 
   // Сброс параметров объекта до дефолтных
@@ -227,8 +230,12 @@ export default (editorInstance) => {
   // Отображение размера канваса
   canvasDisplaySizeNode.textContent = getCanvasDisplaySize(editorInstance)
 
+  // Отображение разрешения монтажной области
+  montageAreaResolutionNode.textContent = getMontageAreaResolution(editorInstance)
+
   editorInstance.canvas.on('after:render', () => {
     canvasResolutionNode.textContent = getCanvasResolution(editorInstance)
+    montageAreaResolutionNode.textContent = getMontageAreaResolution(editorInstance)
     currentObjectDataNode.textContent = getCurrentObjectData(editorInstance)
   })
 

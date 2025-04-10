@@ -383,6 +383,17 @@ export default ({ fabric, editorOptions }) => ({
 
       const { width: imageWidth, height: imageHeight } = img
 
+      if (
+        (imageHeight < CANVAS_MIN_HEIGHT || imageHeight > CANVAS_MAX_HEIGHT)
+        || (imageWidth < CANVAS_MIN_WIDTH || imageWidth > CANVAS_MAX_WIDTH)
+      ) {
+        console.error(`importImage. Image size is out of canvas bounds:
+          min: ${CANVAS_MIN_WIDTH}x${CANVAS_MIN_HEIGHT},
+          max: ${CANVAS_MAX_WIDTH}x${CANVAS_MAX_HEIGHT}`)
+
+        return
+      }
+
       if (scale === 'scale-montage') {
         this.scaleMontageAreaToImage({ object: img, withoutSave })
       } else {
