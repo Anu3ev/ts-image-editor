@@ -899,11 +899,6 @@ export default ({ fabric, editorOptions }) => ({
     const loadedMontage = this.canvas.getObjects().find((obj) => obj.id === 'montage-area')
     if (loadedMontage) {
       this.montageArea = loadedMontage
-
-      this.setResolutionWidth(loadedMontage.width, { withoutSave: true })
-      this.setResolutionHeight(loadedMontage.height, { withoutSave: true })
-
-      this.centerMontageArea()
     }
 
     this.canvas.renderAll()

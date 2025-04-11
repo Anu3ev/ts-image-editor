@@ -124,7 +124,7 @@ class ImageEditor {
 
     this.saveState()
 
-    this.canvas.fire('editor:render-complete', this)
+    this.canvas.fire('editor:ready', this)
   }
 
   /**
