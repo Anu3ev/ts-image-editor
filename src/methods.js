@@ -362,9 +362,9 @@ export default ({ fabric, editorOptions }) => ({
    * Импорт изображения
    * @param {Object} options
    * @param {String} [options.url] - URL изображения
-   * @param {String} [options.scale] - Если размеры изображения больше размеров канваса, то как масштабировать:
-   * 'image-contain' - скейлит картинку, чтобы она вмещалась
-   * 'image-cover' - скейлит картинку, чтобы она вписалась в размер канвас
+   * @param {String} [options.scale] - Если изображение не вписывается в допустимые размеры, то как масштабировать:
+   * 'image-contain' - скейлит картинку, чтобы она вписалась в монтажную область
+   * 'image-cover' - скейлит картинку, чтобы она вписалась в монтажную область
    * 'scale-montage' - Обновляет backstore-резолюцию монтажной области (масштабирует
    * экспортный размер канваса под размер изображения)
    */
@@ -376,23 +376,21 @@ export default ({ fabric, editorOptions }) => ({
     }
 
     try {
-      const img = await fabric.FabricImage.fromURL(url, { crossOrigin: 'anonymous' })
+      let img = await fabric.FabricImage.fromURL(url, { crossOrigin: 'anonymous' })
 
-      const canvasWidth = this.canvas.getWidth()
-      const canvasHeight = this.canvas.getHeight()
+      const { width: montageAreaWidth, height: montageAreaHeight } = this.montageArea
 
       const { width: imageWidth, height: imageHeight } = img
 
-      if (
-        (imageHeight < CANVAS_MIN_HEIGHT || imageHeight > CANVAS_MAX_HEIGHT)
-        || (imageWidth < CANVAS_MIN_WIDTH || imageWidth > CANVAS_MAX_WIDTH)
-      ) {
-        console.error(`importImage. Image size is out of canvas bounds:
-          min: ${CANVAS_MIN_WIDTH}x${CANVAS_MIN_HEIGHT},
-          max: ${CANVAS_MAX_WIDTH}x${CANVAS_MAX_HEIGHT}`)
+      if (imageHeight > CANVAS_MAX_HEIGHT || imageWidth > CANVAS_MAX_WIDTH) {
+        console.warn(`importImage. Размер изображения больше максимального размера канваса, поэтому оно будет уменьшено до максимальных размеров: ${CANVAS_MAX_WIDTH}x${CANVAS_MAX_HEIGHT}`)
 
-        return
+        const dataURL = await this.resizeImageToBoundaries(img._element, 'max')
+        // Создаем новый объект FabricImage из уменьшенного dataURL
+        img = await fabric.FabricImage.fromURL(dataURL, { crossOrigin: 'anonymous' })
       }
+
+      console.log('scale', scale)
 
       if (scale === 'scale-montage') {
         this.scaleMontageAreaToImage({ object: img, withoutSave })
@@ -403,7 +401,7 @@ export default ({ fabric, editorOptions }) => ({
           this.imageFit({ object: img, type: 'contain' })
         } else if (
           scale === 'image-cover'
-          && (imageWidth > canvasWidth || imageHeight > canvasHeight)
+          && (imageWidth > montageAreaWidth || imageHeight > montageAreaHeight)
         ) {
           this.imageFit({ object: img, type: 'cover' })
         }
@@ -421,6 +419,41 @@ export default ({ fabric, editorOptions }) => ({
     } catch (error) {
       console.error('importImage error: ', error)
     }
+  },
+
+  /**
+   * Функция для ресайза изображения до максимальных размеров,
+   * если оно превышает лимит. Сохраняет пропорции.
+   *
+   * @param {HTMLImageElement} imageEl - HTML элемент изображения
+   * @param {string} [size='max | min'] - максимальный или минимальный размер
+   * @returns {Promise<string>} - возвращает Promise с новым dataURL
+   */
+  resizeImageToBoundaries(imageEl, size = 'max') {
+    return new Promise((resolve) => {
+      const { naturalWidth: width, naturalHeight: height } = imageEl
+
+      let ratio = Math.min(CANVAS_MAX_WIDTH / width, CANVAS_MAX_HEIGHT / height)
+
+      if (size === 'min') {
+        ratio = Math.max(CANVAS_MIN_WIDTH / width, CANVAS_MIN_HEIGHT / height)
+      }
+
+      const newWidth = Math.floor(width * ratio)
+      const newHeight = Math.floor(height * ratio)
+
+      // Создаем off-screen canvas
+      const canvas = document.createElement('canvas')
+      canvas.width = newWidth
+      canvas.height = newHeight
+      const ctx = canvas.getContext('2d')
+      // Отрисовываем изображение с уменьшенными размерами
+      ctx.drawImage(imageEl, 0, 0, width, height, 0, 0, newWidth, newHeight)
+      // Получаем новый dataURL
+      const dataURL = canvas.toDataURL()
+      resolve(dataURL)
+      canvas.remove()
+    })
   },
 
   /**
@@ -475,9 +508,10 @@ export default ({ fabric, editorOptions }) => ({
   /**
    * Сброс масштаба объекта до дефолтного
    * @param {fabric.Object} object
+   * @param {Boolean} [fitOnlyBigImage] - растягивать только большие изображения
    * @returns
    */
-  resetObject(object) {
+  resetObject(object, alwaysFitImage = false) {
     const currentObject = object || this.canvas.getActiveObject()
 
     if (!currentObject) return
@@ -495,28 +529,30 @@ export default ({ fabric, editorOptions }) => ({
       this.canvas.renderAll()
     }
 
-    const canvasWidth = this.canvas.getWidth()
-    const canvasHeight = this.canvas.getHeight()
-
-    const { width: imageWidth, height: imageHeight } = currentObject
-
-    const scaleFactor = calculateScaleFactor({
-      montageArea: this.montageArea,
-      imageObject: currentObject,
-      scaleType: editorOptions.scaleType
-    })
-
-    // Делаем contain и cover только если размеры изображения больше размеров канваса, иначе просто сбрасываем
-    if (
-      (editorOptions.scaleType === 'contain' && scaleFactor < 1)
-      || (
-        editorOptions.scaleType === 'cover'
-        && (imageWidth > canvasWidth || imageHeight > canvasHeight)
-      )
-    ) {
-      this.imageFit({ object: currentObject, type: editorOptions.scaleType })
+    if (alwaysFitImage) {
+      this.imageFit({ object: currentObject, withoutSave: true })
     } else {
-      currentObject.set({ scaleX: 1, scaleY: 1 })
+      const { width: montageAreaWidth, height: montageAreaHeight } = this.montageArea
+      const { width: imageWidth, height: imageHeight } = currentObject
+
+      const scaleFactor = calculateScaleFactor({
+        montageArea: this.montageArea,
+        imageObject: currentObject,
+        scaleType: editorOptions.scaleType
+      })
+
+      // Делаем contain и cover только если размеры изображения больше размеров канваса, иначе просто сбрасываем
+      if (
+        (editorOptions.scaleType === 'contain' && scaleFactor < 1)
+        || (
+          editorOptions.scaleType === 'cover'
+          && (imageWidth > montageAreaWidth || imageHeight > montageAreaHeight)
+        )
+      ) {
+        this.imageFit({ object: currentObject, withoutSave: true })
+      } else {
+        currentObject.set({ scaleX: 1, scaleY: 1 })
+      }
     }
 
     currentObject.set({
@@ -534,6 +570,7 @@ export default ({ fabric, editorOptions }) => ({
    * @param {Object} options
    * @param {fabric.Object} [options.object] - Объект с изображением, которое нужно масштабировать
    * @param {Boolean} [options.withoutSave] - Не сохранять состояние
+   * @param {Boolean} [options.preserveAspectRatio] - Сохранять изначальные пропорции монтажной области
    * @fires editor:canvas-scaled
    */
   scaleMontageAreaToImage(options = {}) {
@@ -543,13 +580,16 @@ export default ({ fabric, editorOptions }) => ({
 
     if (!image || image.type !== 'image') return
 
-    let { width: imageWidth, height: imageHeight } = image
+    const { width: imageWidth, height: imageHeight } = image
 
-    imageWidth = Math.max(Math.min(imageWidth, CANVAS_MAX_WIDTH), CANVAS_MIN_WIDTH)
-    imageHeight = Math.max(Math.min(imageHeight, CANVAS_MAX_HEIGHT), CANVAS_MIN_HEIGHT)
+    if (imageWidth < CANVAS_MIN_WIDTH || imageHeight < CANVAS_MIN_HEIGHT) {
+      console.warn(
+        `importImage. Размер изображения меньше минимального размера канваса, поэтому оно будет растянуто до минимальных размеров: ${CANVAS_MIN_WIDTH}x${CANVAS_MIN_HEIGHT}`
+      )
+    }
 
-    let newCanvasWidth = imageWidth
-    let newCanvasHeight = imageHeight
+    let newCanvasWidth = Math.min(imageWidth, CANVAS_MAX_WIDTH)
+    let newCanvasHeight = Math.min(imageHeight, CANVAS_MAX_HEIGHT)
 
     if (preserveAspectRatio) {
       const { width: montageAreaWidth, height: montageAreaHeight } = this.montageArea
@@ -567,9 +607,13 @@ export default ({ fabric, editorOptions }) => ({
     this.setResolutionHeight(newCanvasHeight, { withoutSave: true })
 
     const { montageAreaWidth, montageAreaHeight } = editorOptions
-    this.calculateAndApplyDefaultZoom(montageAreaWidth, montageAreaHeight)
 
-    this.resetObject(image)
+    // Если изображение больше монтажной области, то устанавливаем зум по умолчанию
+    if (imageWidth > montageAreaWidth || imageHeight > montageAreaHeight) {
+      this.calculateAndApplyDefaultZoom(montageAreaWidth, montageAreaHeight)
+    }
+
+    this.resetObject(image, true)
     this.canvas.centerObject(image)
     this.canvas.renderAll()
 
