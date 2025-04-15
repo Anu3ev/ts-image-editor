@@ -642,8 +642,8 @@ export default ({ fabric, editorOptions }) => ({
     } = options
 
     const idPDF = contentType === 'application/pdf'
-    // Если это PDF, то дальше нам нужен будет JPEG
-    const adjustedContentType = idPDF ? 'image/jpeg' : contentType
+    // Если это PDF, то дальше нам нужен будет .jpg
+    const adjustedContentType = idPDF ? 'image/jpg' : contentType
 
     // Сброс активного объекта и ререндер
     this.canvas.discardActiveObject()
@@ -652,9 +652,9 @@ export default ({ fabric, editorOptions }) => ({
     // Сохраняем текущий viewportTransform (матрицу масштабирования и сдвига)
     const savedTransform = this.canvas.viewportTransform.slice()
 
-    // Если экспортируем JPEG, временно задаем белый фон (если его ещё нет)
+    // Если экспортируем .jpg, временно задаем белый фон (если его ещё нет)
     const savedBackground = this.canvas.backgroundColor
-    if (adjustedContentType === 'image/jpeg') {
+    if (adjustedContentType === 'image/jpg') {
       this.canvas.backgroundColor = '#ffffff'
     }
 
@@ -697,7 +697,7 @@ export default ({ fabric, editorOptions }) => ({
       })
 
       // Добавляем изображение в PDF. Используем формат PNG для изображения
-      pdf.addImage(dataUrl, 'JPEG', 0, 0, pdfWidth, pdfHeight)
+      pdf.addImage(dataUrl, 'JPG', 0, 0, pdfWidth, pdfHeight)
 
       if (exportAsBase64) {
         const pdfBase64 = pdf.output('datauristring')
@@ -1440,6 +1440,21 @@ export default ({ fabric, editorOptions }) => ({
     }
 
     this.canvas.fire('editor:object-flipped-y')
+  },
+
+  /**
+   * Установка прозрачности объекта
+   * @param {Number} opacity - Прозрачность от 0 до 1
+   * @fires editor:object-opacity-changed
+   */
+  setActiveObjectOpacity(opacity = 1) {
+    const obj = this.canvas.getActiveObject()
+    if (!obj) return
+
+    obj.set('opacity', opacity)
+    this.canvas.renderAll()
+
+    this.canvas.fire('editor:object-opacity-changed', opacity)
   },
 
   /**
