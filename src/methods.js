@@ -1442,6 +1442,11 @@ export default ({ fabric, editorOptions }) => ({
     this.canvas.fire('editor:object-flipped-y')
   },
 
+  /**
+   * Установка прозрачности объекта
+   * @param {Number} opacity - Прозрачность от 0 до 1
+   * @fires editor:object-opacity-changed
+   */
   setActiveObjectOpacity(opacity = 1) {
     const obj = this.canvas.getActiveObject()
     if (!obj) return
@@ -1449,7 +1454,7 @@ export default ({ fabric, editorOptions }) => ({
     obj.set('opacity', opacity)
     this.canvas.renderAll()
 
-    this.canvas.fire('editor:object-opacity-changed')
+    this.canvas.fire('editor:object-opacity-changed', opacity)
   }
 
   /**
