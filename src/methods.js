@@ -1455,7 +1455,7 @@ export default ({ fabric, editorOptions }) => ({
     this.canvas.renderAll()
 
     this.canvas.fire('editor:object-opacity-changed', opacity)
-  }
+  },
 
   /**
    * Добавление прямоугольника
