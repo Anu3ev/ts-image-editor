@@ -184,7 +184,11 @@ export default ({ fabric, editorOptions }) => ({
     const activeObject = object || this.canvas.getActiveObject()
 
     if (!activeObject) {
-      console.error('getObjectDefaultCoords: No active object')
+      console.error('getObjectDefaultCoords. Не выбран объект')
+
+      this.canvas.fire('editor:error', {
+        message: 'Не выбран объект для получения координат'
+      })
 
       return {}
     }
@@ -383,14 +387,23 @@ export default ({ fabric, editorOptions }) => ({
       const { width: imageWidth, height: imageHeight } = img
 
       if (imageHeight > CANVAS_MAX_HEIGHT || imageWidth > CANVAS_MAX_WIDTH) {
-        console.warn(`importImage. Размер изображения больше максимального размера канваса, поэтому оно будет уменьшено до максимальных размеров: ${CANVAS_MAX_WIDTH}x${CANVAS_MAX_HEIGHT}`)
+        const message = `Размер изображения больше максимального размера канваса, поэтому оно будет уменьшено до максимальных размеров: ${CANVAS_MAX_WIDTH}x${CANVAS_MAX_HEIGHT}`
 
+        console.warn(`importImage. ${message}`)
+
+        this.canvas.fire('editor:warning', {
+          message
+        })
+
+        // Делаем небольшую задержку, чтобы сначала сработал warning
+        await new Promise((resolve) => { setTimeout(resolve, 250) })
+
+        console.time('resizeImageToBoundaries')
         const dataURL = await this.resizeImageToBoundaries(img._element, 'max')
         // Создаем новый объект FabricImage из уменьшенного dataURL
         img = await fabric.FabricImage.fromURL(dataURL, { crossOrigin: 'anonymous' })
+        console.timeEnd('resizeImageToBoundaries')
       }
-
-      console.log('scale', scale)
 
       if (scale === 'scale-montage') {
         this.scaleMontageAreaToImage({ object: img, withoutSave })
@@ -417,7 +430,11 @@ export default ({ fabric, editorOptions }) => ({
 
       this.skipHistory = false
     } catch (error) {
-      console.error('importImage error: ', error)
+      console.error('importImage. Ошибка импорта изображения: ', error)
+
+      this.canvas.fire('editor:error', {
+        message: `Ошибка импорта изображения: ${error.message}`
+      })
     }
   },
 
@@ -583,9 +600,13 @@ export default ({ fabric, editorOptions }) => ({
     const { width: imageWidth, height: imageHeight } = image
 
     if (imageWidth < CANVAS_MIN_WIDTH || imageHeight < CANVAS_MIN_HEIGHT) {
-      console.warn(
-        `importImage. Размер изображения меньше минимального размера канваса, поэтому оно будет растянуто до минимальных размеров: ${CANVAS_MIN_WIDTH}x${CANVAS_MIN_HEIGHT}`
-      )
+      const message = `Размер изображения меньше минимального размера канваса, поэтому оно будет растянуто до минимальных размеров: ${CANVAS_MIN_WIDTH}x${CANVAS_MIN_HEIGHT}`
+
+      console.warn(`importImage. ${message}`)
+
+      this.canvas.fire('editor:warning', {
+        message
+      })
     }
 
     let newCanvasWidth = Math.min(imageWidth, CANVAS_MAX_WIDTH)
@@ -748,7 +769,11 @@ export default ({ fabric, editorOptions }) => ({
     const activeObject = object || this.canvas.getActiveObject()
 
     if (!activeObject) {
-      console.error('exportObjectAsDataURL: No active object')
+      console.error('exportObjectAsDataURL. Не выбран объект')
+
+      this.canvas.fire('editor:error', {
+        message: 'Не выбран объект для экспорта'
+      })
 
       return ''
     }
@@ -979,7 +1004,11 @@ export default ({ fabric, editorOptions }) => ({
 
       this.canvas.fire('editor:undo')
     } catch (error) {
-      console.error('undo error', error)
+      console.error('undo. Ошибка отмены действия: ', error)
+
+      this.canvas.fire('editor:error', {
+        message: `Ошибка отмены действия: ${error.message}`
+      })
     } finally {
       this.isLoading = false
       this.skipHistory = false
@@ -1014,7 +1043,11 @@ export default ({ fabric, editorOptions }) => ({
 
       this.canvas.fire('editor:redo')
     } catch (error) {
-      console.error('redo error', error)
+      console.error('redo. Ошибка повтора действия: ', error)
+
+      this.canvas.fire('editor:error', {
+        message: `Ошибка повтора действия: ${error.message}`
+      })
     } finally {
       this.isLoading = false
       this.skipHistory = false
@@ -1104,7 +1137,11 @@ export default ({ fabric, editorOptions }) => ({
 
       this.canvas.fire('editor:object-copied', { object: clonedObject })
     } catch (error) {
-      console.error('Ошибка записи в системный буфер обмена:', error)
+      console.error('copy. Ошибка записи в системный буфер обмена: ', error)
+
+      this.canvas.fire('editor:error', {
+        message: `Ошибка записи в системный буфер обмена: ${error.message}`
+      })
     }
   },
 
@@ -1446,6 +1483,7 @@ export default ({ fabric, editorOptions }) => ({
    * Установка прозрачности объекта
    * @param {Number} opacity - Прозрачность от 0 до 1
    * @fires editor:object-opacity-changed
+   * TODO: Сейвить состояние
    */
   setActiveObjectOpacity(opacity = 1) {
     const obj = this.canvas.getActiveObject()
