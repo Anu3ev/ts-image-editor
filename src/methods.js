@@ -2,11 +2,8 @@ import { nanoid } from 'nanoid'
 import { jsPDF as JsPDF } from 'jspdf'
 
 import {
-  MIN_ZOOM,
-  MAX_ZOOM,
-  MAX_ZOOM_FACTOR,
   DEFAULT_ZOOM_RATIO,
-  ROTATE_RATIO,
+  DEFAULT_ROTATE_RATIO,
   CANVAS_MIN_WIDTH,
   CANVAS_MIN_HEIGHT,
   CANVAS_MAX_WIDTH,
@@ -363,6 +360,128 @@ export default ({ fabric, editorOptions }) => ({
   },
 
   /**
+   * Приостанавливает сохранение истории
+   */
+  suspendHistory() {
+    this._historySuspendCount += 1
+  },
+
+  /**
+   * Возобновляет сохранение истории
+   */
+  resumeHistory() {
+    this._historySuspendCount = Math.max(0, this._historySuspendCount - 1)
+  },
+
+  /**
+   * Создаёт overlay для блокировки монтажной области
+   */
+  createDisabledOverlay() {
+    this.suspendHistory()
+    // получаем в экранных координатах то, что отображает монтажную зону
+    this.montageArea.setCoords()
+    const { left, top, width, height } = this.montageArea.getBoundingRect()
+
+    // создаём overlay‑объект
+    this.disabledOverlay = new fabric.Rect({
+      left,
+      top,
+      width,
+      height,
+      fill: 'rgba(136, 136, 136, 0.4)',
+      selectable: false, // не даём выделить его
+      evented: true, // но при этом он перехватывает все события мыши
+      hoverCursor: 'not‑allowed',
+      hasBorders: false,
+      hasControls: false
+    })
+
+    // рисуем его поверх всех
+    this.canvas.add(this.disabledOverlay)
+    this.canvas.renderAll()
+    this.resumeHistory()
+  },
+
+  /**
+   * Обновляет размеры и позицию overlay, выносит его на передний план
+   */
+  updateDisabledOverlay() {
+    this.suspendHistory()
+    if (!this.disabledOverlay) return
+
+    // получаем в экранных координатах то, что отображает монтажную зону
+    this.montageArea.setCoords()
+    const { left, top, width, height } = this.montageArea.getBoundingRect()
+
+    // обновляем размеры и позицию overlay
+    this.disabledOverlay.set({ left, top, width, height })
+    this.canvas.discardActiveObject()
+    this.bringToFront(this.disabledOverlay, { withoutSave: true })
+    this.resumeHistory()
+  },
+
+  /**
+   * Выключает редактор:
+   * 1) убирает все селекты, события мыши, скейл/драг–н–дроп
+   * 2) делает все объекты не‑evented и не‑selectable
+   * 3) делает видимым disabledOverlay поверх всех объектов в монтажной области
+   */
+  disable() {
+    this.suspendHistory()
+    if (this.isDisabled) return
+    this.isDisabled = true
+
+    // 1) Убираем все селекты, события мыши, скейл/драг–н–дроп
+    this.canvas.discardActiveObject()
+    this.canvas.selection = false
+    this.canvas.skipTargetFind = true
+
+    // 2) Делаем все объекты не‑evented и не‑selectable
+    this.canvas.getObjects().forEach((obj) => {
+      obj.evented = false
+      obj.selectable = false
+    })
+
+    // 3) (опционально) блокируем сами canvas‑элементы в DOM
+    this.canvas.upperCanvasEl.style.pointerEvents = 'none'
+    this.canvas.lowerCanvasEl.style.pointerEvents = 'none'
+
+    this.disabledOverlay.visible = true
+    this.bringToFront(this.disabledOverlay, { withoutSave: true })
+
+    console.log('EDITOR DISABLED', this.isDisabled)
+
+    this.canvas.fire('editor:disabled')
+    this.resumeHistory()
+  },
+
+  /**
+   * Включает редактор
+   */
+  enable() {
+    if (!this.isDisabled) return
+    this.isDisabled = false
+
+    // 1) возвращаем интерактивность
+    this.canvas.selection = true
+    this.canvas.skipTargetFind = false
+
+    // 2) возвращаем селекты & ивенты
+    this.canvas.getObjects().forEach((obj) => {
+      obj.evented = true
+      obj.selectable = true
+    })
+
+    // 3) разблокируем DOM
+    this.canvas.upperCanvasEl.style.pointerEvents = ''
+    this.canvas.lowerCanvasEl.style.pointerEvents = ''
+    this.disabledOverlay.visible = false
+    this.canvas.requestRenderAll()
+
+    this.canvas.fire('editor:enabled')
+  },
+
+  /**
    * Импорт изображения
    * @param {Object} options
    * @param {String} [options.url] - URL изображения
@@ -376,7 +495,7 @@ export default ({ fabric, editorOptions }) => ({
     if (!url || typeof url !== 'string') return
 
     if (withoutSave) {
-      this.skipHistory = true
+      this.suspendHistory()
     }
 
     try {
@@ -427,14 +546,14 @@ export default ({ fabric, editorOptions }) => ({
       this.canvas.centerObject(img)
       this.canvas.setActiveObject(img)
       this.canvas.renderAll()
-
-      this.skipHistory = false
     } catch (error) {
       console.error('importImage. Ошибка импорта изображения: ', error)
 
       this.canvas.fire('editor:error', {
         message: `Ошибка импорта изображения: ${error.message}`
       })
+    } finally {
+      this.resumeHistory()
     }
   },
 
@@ -803,7 +922,7 @@ export default ({ fabric, editorOptions }) => ({
    * @fires editor:objects-grouped
    */
   group() {
-    this.skipHistory = true
+    this.suspendHistory()
     const activeObject = this.canvas.getActiveObject()
     if (!activeObject) return
 
@@ -815,7 +934,7 @@ export default ({ fabric, editorOptions }) => ({
     this.canvas.add(group)
     this.canvas.setActiveObject(group)
     this.canvas.renderAll()
-    this.skipHistory = false
+    this.resumeHistory()
 
     this.canvas.fire('editor:objects-grouped')
   },
@@ -826,7 +945,7 @@ export default ({ fabric, editorOptions }) => ({
    * @fires editor:objects-ungrouped
    */
   ungroup(obj) {
-    this.skipHistory = true
+    this.suspendHistory()
 
     const group = obj || this.canvas.getActiveObject()
 
@@ -841,7 +960,7 @@ export default ({ fabric, editorOptions }) => ({
 
     this.canvas.setActiveObject(sel)
     this.canvas.renderAll()
-    this.skipHistory = false
+    this.resumeHistory()
 
     this.canvas.fire('editor:objects-ungrouped')
   },
@@ -853,7 +972,7 @@ export default ({ fabric, editorOptions }) => ({
    * @fires editor:object-deleted
    */
   deleteSelectedObjects(options = {}) {
-    this.skipHistory = true
+    this.suspendHistory()
     const { withoutSave } = options
 
     const activeObjects = this.canvas.getActiveObjects()
@@ -873,7 +992,7 @@ export default ({ fabric, editorOptions }) => ({
 
     this.canvas.discardActiveObject()
     this.canvas.renderAll()
-    this.skipHistory = false
+    this.resumeHistory()
 
     if (!withoutSave) {
       this.saveState()
@@ -990,7 +1109,7 @@ export default ({ fabric, editorOptions }) => ({
     }
 
     this.isLoading = true
-    this.skipHistory = true
+    this.suspendHistory()
 
     try {
       this.history.currentIndex -= 1
@@ -1011,7 +1130,7 @@ export default ({ fabric, editorOptions }) => ({
       })
     } finally {
       this.isLoading = false
-      this.skipHistory = false
+      this.resumeHistory()
     }
   },
 
@@ -1030,7 +1149,7 @@ export default ({ fabric, editorOptions }) => ({
     }
 
     this.isLoading = true
-    this.skipHistory = true
+    this.suspendHistory()
 
     try {
       this.history.currentIndex += 1
@@ -1050,7 +1169,7 @@ export default ({ fabric, editorOptions }) => ({
       })
     } finally {
       this.isLoading = false
-      this.skipHistory = false
+      this.resumeHistory()
     }
   },
 
@@ -1072,7 +1191,7 @@ export default ({ fabric, editorOptions }) => ({
    * @fires editor:cleared
    */
   clearCanvas() {
-    this.skipHistory = true
+    this.suspendHistory()
     // Сохраняем ссылку на монтажную область
     const { montageArea } = this
 
@@ -1083,7 +1202,7 @@ export default ({ fabric, editorOptions }) => ({
     this.canvas.add(montageArea)
 
     this.canvas.renderAll()
-    this.skipHistory = false
+    this.resumeHistory()
 
     this.saveState()
 
@@ -1184,22 +1303,26 @@ export default ({ fabric, editorOptions }) => ({
    * Метод рассчитывает дефолтный, максимальный, и минимальный зум таким образом,
    * чтобы монтажная область визуально занимала переданные размеры.
    * Если размеры не переданы, то используются дефолтные размеры монтажной области переданные в editorOptions.
+   * @param {number} [targetWidth]  — желаемая видимая ширина (px)
+   * @param {number} [targetHeight] — желаемая видимая высота (px)
    */
-  calculateAndApplyDefaultZoom(width, height) {
-    const visualWidth = width || editorOptions.montageAreaWidth
-    const visualHeight = height || editorOptions.montageAreaHeight
-
+  calculateAndApplyDefaultZoom(
+    targetWidth = editorOptions.montageAreaWidth,
+    targetHeight = editorOptions.montageAreaHeight
+  ) {
     const { width: montageWidth, height: montageHeight } = this.montageArea
 
-    const scaleX = visualWidth / montageWidth
-    const scaleY = visualHeight / montageHeight
+    const scaleX = targetWidth / montageWidth
+    const scaleY = targetHeight / montageHeight
 
     // выбираем меньший зум, чтобы монтажная область целиком помещалась
     const defaultZoom = Math.min(scaleX, scaleY)
 
+    const { minZoom, maxZoom, maxZoomFactor } = editorOptions
+
     // устанавливаем допустимые пределы зума
-    this.minZoom = Math.min(defaultZoom / MAX_ZOOM_FACTOR, MIN_ZOOM)
-    this.maxZoom = Math.max(defaultZoom * MAX_ZOOM_FACTOR, MAX_ZOOM)
+    this.minZoom = Math.min(defaultZoom / maxZoomFactor, minZoom)
+    this.maxZoom = Math.max(defaultZoom * maxZoomFactor, maxZoom)
 
     // запоминаем дефолтный зум
     this.defaultZoom = defaultZoom
@@ -1312,7 +1435,7 @@ export default ({ fabric, editorOptions }) => ({
    * @fires editor:object-bring-to-front
    */
   bringToFront(object, options = {}) {
-    this.skipHistory = true
+    this.suspendHistory()
 
     const { withoutSave } = options
 
@@ -1322,7 +1445,7 @@ export default ({ fabric, editorOptions }) => ({
 
     this.canvas.bringObjectToFront(activeObject)
     this.canvas.renderAll()
-    this.skipHistory = false
+    this.resumeHistory()
 
     if (!withoutSave) {
       this.saveState()
@@ -1339,7 +1462,7 @@ export default ({ fabric, editorOptions }) => ({
    * @fires editor:object-bring-forward
    */
   bringForward(object, options = {}) {
-    this.skipHistory = true
+    this.suspendHistory()
     const { withoutSave } = options
 
     const activeObject = object || this.canvas.getActiveObject()
@@ -1348,7 +1471,7 @@ export default ({ fabric, editorOptions }) => ({
 
     this.canvas.bringObjectForward(activeObject)
     this.canvas.renderAll()
-    this.skipHistory = false
+    this.resumeHistory()
 
     if (!withoutSave) {
       this.saveState()
@@ -1365,7 +1488,7 @@ export default ({ fabric, editorOptions }) => ({
   * @fires editor:object-send-to-back
   */
   sendToBack(object, options = {}) {
-    this.skipHistory = true
+    this.suspendHistory()
     const { withoutSave } = options
 
     const activeObject = object || this.canvas.getActiveObject()
@@ -1376,7 +1499,7 @@ export default ({ fabric, editorOptions }) => ({
     this.canvas.sendObjectToBack(this.montageArea)
     this.canvas.renderAll()
 
-    this.skipHistory = false
+    this.resumeHistory()
 
     if (!withoutSave) {
       this.saveState()
@@ -1392,7 +1515,7 @@ export default ({ fabric, editorOptions }) => ({
   * @param {Boolean} options.withoutSave - Не сохранять состояние
   */
   sendBackwards(object, options = {}) {
-    this.skipHistory = true
+    this.suspendHistory()
     const { withoutSave } = options
 
     const activeObject = object || this.canvas.getActiveObject()
@@ -1403,7 +1526,7 @@ export default ({ fabric, editorOptions }) => ({
     this.canvas.sendObjectToBack(this.montageArea)
     this.canvas.renderAll()
 
-    this.skipHistory = false
+    this.resumeHistory()
 
     if (!withoutSave) {
       this.saveState()
@@ -1419,7 +1542,7 @@ export default ({ fabric, editorOptions }) => ({
    * @param {Boolean} options.withoutSave - Не сохранять состояние
    * @fires editor:object-rotated
    */
-  rotate(angle = ROTATE_RATIO, options = {}) {
+  rotate(angle = DEFAULT_ROTATE_RATIO, options = {}) {
     const { withoutSave } = options
 
     const obj = this.canvas.getActiveObject()

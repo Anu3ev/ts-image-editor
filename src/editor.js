@@ -18,6 +18,7 @@ import {
 // TODO: Добавление текста
 // TODO: drag'n'drop картинки
 // TODO: Сделать снэп (прилипание к краям и центру)
+// TODO: Разделить внутренние методы и публичные
 
 /**
  * Класс редактора изображений.
@@ -30,12 +31,15 @@ import {
 class ImageEditor {
   constructor(canvasId, options = {}) {
     this.isLoading = false
-    this.skipHistory = false
+    this.isDisable = false
+    this.disabledOverlay = null
+
     this.options = options
     this.canvas = new fabric.Canvas(canvasId, options)
 
     this.clipboard = null
 
+    this._historySuspendCount = 0
     this.history = {
       // Базовое состояние от которого будет строиться история
       baseState: null,
@@ -48,8 +52,9 @@ class ImageEditor {
     }
 
     this.defaultZoom = options.defaultScale
-    this.minZoom = MIN_ZOOM
-    this.maxZoom = MAX_ZOOM
+
+    this.minZoom = options.minZoom || MIN_ZOOM
+    this.maxZoom = options.maxZoom || MAX_ZOOM
 
     this.montageArea = new fabric.Rect({
       width: options.montageAreaWidth,
@@ -97,6 +102,7 @@ class ImageEditor {
 
     this.listeners = new Listeners({ editor: this, options: this.options })
 
+    this.createDisabledOverlay()
     this.setEditorContainerWidth(this.options.editorContainerWidth)
     this.setEditorContainerHeight(this.options.editorContainerHeight)
     this.setCanvasWrapperWidth(this.options.canvasWrapperWidth)
@@ -125,6 +131,10 @@ class ImageEditor {
     this.saveState()
 
     this.canvas.fire('editor:ready', this)
+  }
+
+  get skipHistory() {
+    return this._historySuspendCount > 0
   }
 
   /**

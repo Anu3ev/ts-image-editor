@@ -45,7 +45,20 @@ export default {
   initialImage: null,
 
   // Дефолтный масштаб
-  defaultScale: 0.7,
+  defaultScale: 1,
+
+  // Минимальный и максимальный зум
+  minZoom: 0.1,
+  maxZoom: 2,
+  // Максимальная кратность зума относительно текущего defaultZoom
+  maxZoomFactor: 2,
+
+  // Шаг зума
+  zoomRatio: 0.1,
+
+  /*
+   * Настройки слушателей событий
+   */
 
   // Адаптировать канвас при изменении размеров контейнера (например, при изменении размеров окна браузера)
   adaptCanvasToContainer: true,
