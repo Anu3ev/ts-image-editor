@@ -32,6 +32,11 @@ class Listeners {
     this.handleDeleteObjectsEventBound = this.handleDeleteObjectsEvent.bind(this)
 
     // Canvas (Fabric) события:
+    this.handleObjectModifiedHistoryBound = this.editor.debounce(this.handleObjectModifiedHistory.bind(this), 300)
+    this.handleObjectRotatingHistoryBound = this.editor.debounce(this.handleObjectRotatingHistory.bind(this), 300)
+    this.handleObjectAddedHistoryBound = this.handleObjectAddedHistory.bind(this)
+    this.handleObjectRemovedHistoryBound = this.handleObjectRemovedHistory.bind(this)
+    this.handleOverlayUpdateBound = this.handleOverlayUpdate.bind(this)
     this.handleCanvasDragStartBound = this.handleCanvasDragStart.bind(this)
     this.handleCanvasDraggingBound = this.handleCanvasDragging.bind(this)
     this.handleCanvasDragEndBound = this.handleCanvasDragEnd.bind(this)
@@ -59,7 +64,6 @@ class Listeners {
       resetObjectFitByDoubleClick
     } = this.options
 
-    // Подключаем Fabric-события для перетаскивания канваса, если включено
     if (canvasDragging) {
       this.canvas.on('mouse:down', this.handleCanvasDragStartBound)
       this.canvas.on('mouse:move', this.handleCanvasDraggingBound)
@@ -107,38 +111,46 @@ class Listeners {
     }
 
     // Инициализация истории редактора
-    this.initHistoryStateListeners()
+    this.canvas.on('object:modified', this.handleObjectModifiedHistoryBound)
+    this.canvas.on('object:rotating', this.handleObjectRotatingHistoryBound)
+    this.canvas.on('object:added', this.handleObjectAddedHistoryBound)
+    this.canvas.on('object:removed', this.handleObjectRemovedHistoryBound)
+
+    // Инициализация событий для disabledOverlay
+    this.canvas.on('object:added', this.handleOverlayUpdateBound)
+    this.canvas.on('selection:created', this.handleOverlayUpdateBound)
   }
 
   /**
-   * Инициализация событий для сохранения истории (используя debounce).
+   * Обработчики для сохранения состояния редактора в истории.
+   * Срабатывают при изменении объектов (перемещение, изменение размера и т.д.).
    */
-  initHistoryStateListeners() {
-    // Сохраняем состояние при добавлении, изменении, удалении объектов.
-    // Используем debounce для уменьшения количества сохранений.
-    this.canvas.on('object:modified', this.editor.debounce(() => {
-      if (this.editor.skipHistory) return
+  handleObjectModifiedHistory() {
+    if (this.editor.skipHistory) return
+    this.editor.saveState()
+  }
 
-      this.editor.saveState()
-    }, 300))
+  handleObjectRotatingHistory() {
+    if (this.editor.skipHistory) return
+    this.editor.saveState()
+  }
 
-    this.canvas.on('object:rotating', this.editor.debounce(() => {
-      if (this.editor.skipHistory) return
+  handleObjectAddedHistory() {
+    if (this.editor.skipHistory || this.editor.isLoading) return
+    this.editor.saveState()
+  }
 
-      this.editor.saveState()
-    }, 300))
+  handleObjectRemovedHistory() {
+    if (this.editor.skipHistory || this.editor.isLoading) return
+    this.editor.saveState()
+  }
 
-    this.canvas.on('object:added', () => {
-      if (this.editor.skipHistory || this.editor.isLoading) return
-
-      this.editor.saveState()
-    })
-
-    this.canvas.on('object:removed', () => {
-      if (this.editor.skipHistory || this.editor.isLoading) return
-
-      this.editor.saveState()
-    })
+  /**
+   * Обновление disabledOverlay при добавлении объектов или выделении.
+   */
+  handleOverlayUpdate() {
+    if (!this.editor.isDisabled || !this.editor.disabledOverlay) return
+    this.editor.updateDisabledOverlay()
   }
 
   // --- Глобальные DOM-обработчики ---
@@ -386,6 +398,14 @@ class Listeners {
     if (this.options.resetObjectFitByDoubleClick) {
       this.canvas.off('mouse:dblclick', this.handleResetObjectFitBound)
     }
+
+    this.canvas.off('object:modified', this.handleObjectModifiedHistoryBound)
+    this.canvas.off('object:rotating', this.handleObjectRotatingHistoryBound)
+    this.canvas.off('object:added', this.handleObjectAddedHistoryBound)
+    this.canvas.off('object:removed', this.handleObjectRemovedHistoryBound)
+
+    this.canvas.off('object:added', this.handleOverlayUpdateBound)
+    this.canvas.off('selection:created', this.handleOverlayUpdateBound)
   }
 }
 
