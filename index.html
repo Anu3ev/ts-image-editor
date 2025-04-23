@@ -6,55 +6,7 @@
 <title>Простой редактор на Fabric.js</title>
 <script type="module" src="/src/main.js"></script>
 <script type="module" src="/src/demo/index.js"></script>
-<style>
-  body {
-    margin: 0 auto;
-    padding: 1rem;
-
-    #canvas-container {
-      display: flex;
-      align-items: start;
-      justify-content: center;
-      gap: 16px;
-    }
-
-    #editor {
-      border: 1px solid #ccc;
-    }
-
-    .controls {
-      border: 1px solid #ccc;
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-
-      .layer-controls {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-      }
-    }
-
-    .canvas-state {
-      padding: 1rem;
-      border: 1px solid #ccc;
-      display: flex;
-      flex-direction: column;
-      width: 300px;
-      gap: 8px;
-    }
-
-    h3, h4, hr {
-      margin: 0;
-      padding: 0;
-    }
-
-    hr {
-      width: 100%;
-    }
-  }
-</style>
+<link rel="stylesheet" href="/src/demo/style.css" />
 </head>
 <body>
 <div id="canvas-container">
@@ -76,6 +28,8 @@
 
     <h4>Current Object Data</h4>
     <div id="current-object-data"></div>
+
+    <div class="loader"></div>
   </div>
 
   <div id="editor"></div>

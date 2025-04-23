@@ -19,6 +19,8 @@ import {
 // TODO: drag'n'drop картинки
 // TODO: Сделать снэп (прилипание к краям и центру)
 // TODO: Разделить внутренние методы и публичные
+// TODO: Подумать как работать с переводами в редакторе
+// TODO: Учитывать что в редактор может прилететь SVG и на выходе тоже нужно получить SVG
 
 /**
  * Класс редактора изображений.
@@ -30,15 +32,14 @@ import {
  */
 class ImageEditor {
   constructor(canvasId, options = {}) {
+    this.options = options
+
     this.isLoading = false
     this.isDisable = false
     this.disabledOverlay = null
-
-    this.options = options
-    this.canvas = new fabric.Canvas(canvasId, options)
-
     this.clipboard = null
 
+    this._createdBlobUrls = []
     this._historySuspendCount = 0
     this.history = {
       // Базовое состояние от которого будет строиться история
@@ -55,6 +56,8 @@ class ImageEditor {
 
     this.minZoom = options.minZoom || MIN_ZOOM
     this.maxZoom = options.maxZoom || MAX_ZOOM
+
+    this.canvas = new fabric.Canvas(canvasId, options)
 
     this.montageArea = new fabric.Rect({
       width: options.montageAreaWidth,
@@ -102,7 +105,9 @@ class ImageEditor {
 
     this.listeners = new Listeners({ editor: this, options: this.options })
 
+    this.initEditorWorker()
     this.createDisabledOverlay()
+
     this.setEditorContainerWidth(this.options.editorContainerWidth)
     this.setEditorContainerHeight(this.options.editorContainerHeight)
     this.setCanvasWrapperWidth(this.options.canvasWrapperWidth)
@@ -117,7 +122,6 @@ class ImageEditor {
         withoutSave = true
       } = this.options.initialImage
 
-      console.log('this.options.initialImage?.imageUrl', url)
       await this.importImage({ url, scale: scaleType, withoutSave })
     } else {
       this.setDefaultScale({ withoutSave: true })
@@ -138,11 +142,73 @@ class ImageEditor {
   }
 
   /**
+   * Создаёт overlay для блокировки монтажной области
+   */
+  createDisabledOverlay() {
+    this.suspendHistory()
+
+    // получаем координаты монтажной области
+    this.montageArea.setCoords()
+    const { left, top, width, height } = this.montageArea.getBoundingRect()
+
+    // создаём overlay‑объект
+    this.disabledOverlay = new fabric.Rect({
+      left,
+      top,
+      width,
+      height,
+      fill: this.options.disabledOverlayColor,
+      selectable: false,
+      evented: true,
+      hoverCursor: 'not‑allowed',
+      hasBorders: false,
+      hasControls: false,
+      visible: false,
+      id: 'disabled-overlay'
+    })
+
+    // рисуем его поверх всех
+    this.canvas.add(this.disabledOverlay)
+    this.canvas.renderAll()
+    this.resumeHistory()
+  }
+
+  initEditorWorker() {
+    this.worker = new Worker(
+      new URL('./worker.js', import.meta.url),
+      { type: 'module' }
+    )
+
+    // будем хранить колбэки по requestId
+    this._callbacks = new Map()
+
+    // общий onmessage для всех
+    this.worker.onmessage = ({ data }) => {
+      const { requestId, success, data: payload, error } = data
+      const cb = this._callbacks.get(requestId)
+      if (!cb) return
+
+      if (success) {
+        cb.resolve(payload)
+      } else {
+        cb.reject(new Error(error))
+      }
+
+      this._callbacks.delete(requestId)
+    }
+  }
+
+  /**
    * Метод для удаления редактора и всех слушателей.
    */
   destroy() {
     this.listeners.destroy()
     this.canvas.dispose()
+    this.worker.terminate()
+
+    // удаляем все созданные blob-URL
+    this._createdBlobUrls.forEach(URL.revokeObjectURL)
+    this._createdBlobUrls = []
   }
 }
 

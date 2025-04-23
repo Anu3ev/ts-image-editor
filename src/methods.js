@@ -374,40 +374,12 @@ export default ({ fabric, editorOptions }) => ({
   },
 
   /**
-   * Создаёт overlay для блокировки монтажной области
-   */
-  createDisabledOverlay() {
-    this.suspendHistory()
-    // получаем в экранных координатах то, что отображает монтажную зону
-    this.montageArea.setCoords()
-    const { left, top, width, height } = this.montageArea.getBoundingRect()
-
-    // создаём overlay‑объект
-    this.disabledOverlay = new fabric.Rect({
-      left,
-      top,
-      width,
-      height,
-      fill: 'rgba(136, 136, 136, 0.4)',
-      selectable: false, // не даём выделить его
-      evented: true, // но при этом он перехватывает все события мыши
-      hoverCursor: 'not‑allowed',
-      hasBorders: false,
-      hasControls: false
-    })
-
-    // рисуем его поверх всех
-    this.canvas.add(this.disabledOverlay)
-    this.canvas.renderAll()
-    this.resumeHistory()
-  },
-
-  /**
    * Обновляет размеры и позицию overlay, выносит его на передний план
    */
   updateDisabledOverlay() {
-    this.suspendHistory()
     if (!this.disabledOverlay) return
+
+    this.suspendHistory()
 
     // получаем в экранных координатах то, что отображает монтажную зону
     this.montageArea.setCoords()
@@ -427,8 +399,9 @@ export default ({ fabric, editorOptions }) => ({
    * 3) делает видимым disabledOverlay поверх всех объектов в монтажной области
    */
   disable() {
-    this.suspendHistory()
     if (this.isDisabled) return
+
+    this.suspendHistory()
     this.isDisabled = true
 
     // 1) Убираем все селекты, события мыши, скейл/драг–н–дроп
@@ -437,7 +410,7 @@ export default ({ fabric, editorOptions }) => ({
     this.canvas.skipTargetFind = true
 
     // 2) Делаем все объекты не‑evented и не‑selectable
-    this.canvas.getObjects().forEach((obj) => {
+    this.getObjects().forEach((obj) => {
       obj.evented = false
       obj.selectable = false
     })
@@ -447,9 +420,7 @@ export default ({ fabric, editorOptions }) => ({
     this.canvas.lowerCanvasEl.style.pointerEvents = 'none'
 
     this.disabledOverlay.visible = true
-    this.bringToFront(this.disabledOverlay, { withoutSave: true })
-
-    console.log('EDITOR DISABLED', this.isDisabled)
+    this.updateDisabledOverlay()
 
     this.canvas.fire('editor:disabled')
     this.resumeHistory()
@@ -460,6 +431,8 @@ export default ({ fabric, editorOptions }) => ({
    */
   enable() {
     if (!this.isDisabled) return
+
+    this.suspendHistory()
     this.isDisabled = false
 
     // 1) возвращаем интерактивность
@@ -467,7 +440,7 @@ export default ({ fabric, editorOptions }) => ({
     this.canvas.skipTargetFind = false
 
     // 2) возвращаем селекты & ивенты
-    this.canvas.getObjects().forEach((obj) => {
+    this.getObjects().forEach((obj) => {
       obj.evented = true
       obj.selectable = true
     })
@@ -479,6 +452,22 @@ export default ({ fabric, editorOptions }) => ({
     this.canvas.requestRenderAll()
 
     this.canvas.fire('editor:enabled')
+    this.resumeHistory()
+  },
+
+  /**
+   * Универсальный метод отправки команды в воркер
+   * @param {String} action
+   * @param {Object} payload
+   * @param {Array} [transferables] - массив объектов, которые нужно передать в воркер
+   * @returns {Promise<any>}
+   */
+  postToWorker(action, payload, transferables = []) {
+    const requestId = `${action}:${Math.random().toString(36).slice(2)}`
+    return new Promise((resolve, reject) => {
+      this._callbacks.set(requestId, { resolve, reject })
+      this.worker.postMessage({ action, payload, requestId }, transferables)
+    })
   },
 
   /**
@@ -499,34 +488,34 @@ export default ({ fabric, editorOptions }) => ({
     }
 
     try {
-      let img = await fabric.FabricImage.fromURL(url, { crossOrigin: 'anonymous' })
+      // Загружаем изображение в воркер и получаем blob
+      const blob = await this.postToWorker('loadImage', { url })
+      const dataUrl = URL.createObjectURL(blob)
 
-      const { width: montageAreaWidth, height: montageAreaHeight } = this.montageArea
+      // Создаем blobURL и добавляем его в массив для последующего удаления (destroy)
+      this._createdBlobUrls.push(dataUrl)
+
+      // Создаем объект FabricImage из blobURL
+      let img = await fabric.FabricImage.fromURL(dataUrl, { crossOrigin: 'anonymous' })
 
       const { width: imageWidth, height: imageHeight } = img
 
+      // Если изображение больше максимальных размеров, то даунскейлим его
       if (imageHeight > CANVAS_MAX_HEIGHT || imageWidth > CANVAS_MAX_WIDTH) {
-        const message = `Размер изображения больше максимального размера канваса, поэтому оно будет уменьшено до максимальных размеров: ${CANVAS_MAX_WIDTH}x${CANVAS_MAX_HEIGHT}`
+        const resizedBlob = await this.resizeImageToBoundaries(img._element.src, 'max')
+        const resizedBlobURL = URL.createObjectURL(resizedBlob)
+        this._createdBlobUrls.push(resizedBlobURL)
 
-        console.warn(`importImage. ${message}`)
-
-        this.canvas.fire('editor:warning', {
-          message
-        })
-
-        // Делаем небольшую задержку, чтобы сначала сработал warning
-        await new Promise((resolve) => { setTimeout(resolve, 250) })
-
-        console.time('resizeImageToBoundaries')
-        const dataURL = await this.resizeImageToBoundaries(img._element, 'max')
         // Создаем новый объект FabricImage из уменьшенного dataURL
-        img = await fabric.FabricImage.fromURL(dataURL, { crossOrigin: 'anonymous' })
-        console.timeEnd('resizeImageToBoundaries')
+        img = await fabric.FabricImage.fromURL(resizedBlobURL, { crossOrigin: 'anonymous' })
       }
 
+      // Растягиваем монтажную область под изображение или наоборот
       if (scale === 'scale-montage') {
         this.scaleMontageAreaToImage({ object: img, withoutSave })
       } else {
+        const { width: montageAreaWidth, height: montageAreaHeight } = this.montageArea
+
         const scaleFactor = calculateScaleFactor({ montageArea: this.montageArea, imageObject: img, scaleType: scale })
 
         if (scale === 'image-contain' && scaleFactor < 1) {
@@ -565,31 +554,22 @@ export default ({ fabric, editorOptions }) => ({
    * @param {string} [size='max | min'] - максимальный или минимальный размер
    * @returns {Promise<string>} - возвращает Promise с новым dataURL
    */
-  resizeImageToBoundaries(imageEl, size = 'max') {
-    return new Promise((resolve) => {
-      const { naturalWidth: width, naturalHeight: height } = imageEl
+  async resizeImageToBoundaries(dataURL, size = 'max') {
+    const message = `Размер изображения больше максимального размера канваса, поэтому оно будет уменьшено до максимальных размеров: ${CANVAS_MAX_WIDTH}x${CANVAS_MAX_HEIGHT}`
+    console.warn(`importImage. ${message}`)
 
-      let ratio = Math.min(CANVAS_MAX_WIDTH / width, CANVAS_MAX_HEIGHT / height)
-
-      if (size === 'min') {
-        ratio = Math.max(CANVAS_MIN_WIDTH / width, CANVAS_MIN_HEIGHT / height)
-      }
-
-      const newWidth = Math.floor(width * ratio)
-      const newHeight = Math.floor(height * ratio)
-
-      // Создаем off-screen canvas
-      const canvas = document.createElement('canvas')
-      canvas.width = newWidth
-      canvas.height = newHeight
-      const ctx = canvas.getContext('2d')
-      // Отрисовываем изображение с уменьшенными размерами
-      ctx.drawImage(imageEl, 0, 0, width, height, 0, 0, newWidth, newHeight)
-      // Получаем новый dataURL
-      const dataURL = canvas.toDataURL()
-      resolve(dataURL)
-      canvas.remove()
+    this.canvas.fire('editor:warning', {
+      message
     })
+
+    const newDataURL = await this.postToWorker('resizeImage', {
+      dataURL,
+      maxWidth: CANVAS_MAX_WIDTH,
+      maxHeight: CANVAS_MAX_HEIGHT,
+      sizeType: size
+    })
+
+    return newDataURL
   },
 
   /**
@@ -771,6 +751,7 @@ export default ({ fabric, editorOptions }) => ({
    * @param {string} options.fileName - имя файла
    * @param {string} options.contentType - тип контента
    * @param {Boolean} options.exportAsBase64 - экспортировать как base64
+   * @param {Boolean} options.exportAsBlob - экспортировать как blob
    * @returns {Promise<File> | String} - файл или base64
    * @fires editor:canvas-exported
    */
@@ -778,54 +759,60 @@ export default ({ fabric, editorOptions }) => ({
     const {
       fileName = 'image.png',
       contentType = 'image/png',
-      exportAsBase64 = false
+      exportAsBase64 = false,
+      exportAsBlob = false
     } = options
 
-    const idPDF = contentType === 'application/pdf'
+    const isPDF = contentType === 'application/pdf'
     // Если это PDF, то дальше нам нужен будет .jpg
-    const adjustedContentType = idPDF ? 'image/jpg' : contentType
-
-    // Сброс активного объекта и ререндер
-    this.canvas.discardActiveObject()
-    this.canvas.renderAll()
-
-    // Сохраняем текущий viewportTransform (матрицу масштабирования и сдвига)
-    const savedTransform = this.canvas.viewportTransform.slice()
-
-    // Если экспортируем .jpg, временно задаем белый фон (если его ещё нет)
-    const savedBackground = this.canvas.backgroundColor
-    if (adjustedContentType === 'image/jpg') {
-      this.canvas.backgroundColor = '#ffffff'
-    }
-
-    // Сбрасываем viewportTransform, чтобы экспортировать содержимое в координатах канваса без зума
-    this.canvas.viewportTransform = [1, 0, 0, 1, 0, 0]
-    this.canvas.renderAll()
+    const adjustedContentType = isPDF ? 'image/jpg' : contentType
 
     // Пересчитываем координаты монтажной области:
     this.montageArea.setCoords()
 
     // Получаем координаты монтажной области.
     const { left, top, width, height } = this.montageArea.getBoundingRect()
-    this.montageArea.visible = false
-    this.canvas.renderAll()
 
-    // Вызываем toDataURL с указанием нужной области.
-    const dataUrl = this.canvas.toDataURL({
-      format: adjustedContentType.split('/')[1],
-      left,
-      top,
-      width,
-      height
-    })
+    // Создаем клон канваса
+    const tmpCanvas = await this.canvas.clone(['id'])
 
-    // Восстанавливаем сохранённый viewportTransform и заливку для монтажной области
-    this.canvas.viewportTransform = savedTransform
-    this.montageArea.visible = true
-    this.canvas.backgroundColor = savedBackground
-    this.canvas.renderAll()
+    // Задаём белый фон если это JPG
+    if (['image/jpg', 'image/jpeg'].includes(adjustedContentType)) {
+      tmpCanvas.backgroundColor = '#ffffff'
+    }
 
-    if (idPDF) {
+    window.tmpCanvas = tmpCanvas
+
+    // Находим монтажную область в клонированном канвасе и скрываем её
+    const tmpCanvasMontageArea = tmpCanvas.getObjects().find((obj) => obj.id === this.montageArea.id)
+    tmpCanvasMontageArea.visible = false
+
+    // Сдвигаем клонированную сцену
+    tmpCanvas.viewportTransform = [1, 0, 0, 1, -left, -top]
+    tmpCanvas.setDimensions({ width, height }, { backstoreOnly: true })
+    tmpCanvas.renderAll()
+
+    // Получаем blob из клонированного канваса
+    const blob = await new Promise((resolve) => { tmpCanvas.getElement().toBlob(resolve) })
+
+    // Уничтожаем клон
+    tmpCanvas.dispose()
+
+    if (exportAsBlob) {
+      this.canvas.fire('editor:canvas-exported', blob)
+
+      return blob
+    }
+
+    // Создаём bitmap из blob, отправляем в воркер и получаем dataURL
+    const bitmap = await createImageBitmap(blob)
+    const dataUrl = await this.postToWorker(
+      'toDataURL',
+      { format: options.contentType.split('/')[1], quality: 1, bitmap },
+      [bitmap]
+    )
+
+    if (isPDF) {
       const pxToMm = 0.264583 // коэффициент перевода пикселей в миллиметры (при 96 DPI)
       const pdfWidth = width * pxToMm
       const pdfHeight = height * pxToMm
@@ -858,9 +845,7 @@ export default ({ fabric, editorOptions }) => ({
       return dataUrl
     }
 
-    // Преобразуем dataUrl в Blob и затем в File
-    const blob = await (await fetch(dataUrl)).blob()
-
+    // Преобразуем Blob в File
     const file = new File([blob], fileName, { type: adjustedContentType })
     this.canvas.fire('editor:canvas-exported', { image: file })
 
@@ -874,6 +859,7 @@ export default ({ fabric, editorOptions }) => ({
    * @param {String} options.fileName - имя файла
    * @param {String} options.contentType - тип контента
    * @param {Boolean} options.exportAsBase64 - экспортировать как base64
+   * @param {Boolean} options.exportAsBlob - экспортировать как blob
    * @returns {String} base64
    * @fires editor:object-exported
    */
@@ -882,7 +868,8 @@ export default ({ fabric, editorOptions }) => ({
       object,
       fileName = 'image.png',
       contentType = 'image/png',
-      exportAsBase64 = false
+      exportAsBase64 = false,
+      exportAsBlob = false
     } = options
 
     const activeObject = object || this.canvas.getActiveObject()
@@ -897,21 +884,33 @@ export default ({ fabric, editorOptions }) => ({
       return ''
     }
 
-    // Вызываем toDataURL с указанием нужной области.
-    const dataUrl = await activeObject.toDataURL({
-      format: contentType.split('/')[1]
-    })
-
     if (exportAsBase64) {
+      const bitmap = await createImageBitmap(activeObject._element)
+      const dataUrl = await this.postToWorker(
+        'toDataURL',
+        {
+          format: contentType.split('/')[1],
+          quality: 1,
+          bitmap
+        },
+        [bitmap]
+      )
+
       this.canvas.fire('editor:object-exported', { image: dataUrl })
 
       return dataUrl
     }
 
-    // Преобразуем dataUrl в Blob и затем в File
-    const blob = await (await fetch(dataUrl)).blob()
+    const activeObjectCanvas = activeObject.toCanvasElement()
+    const activeObjectBlob = await new Promise((resolve) => { activeObjectCanvas.toBlob(resolve) })
 
-    const file = new File([blob], fileName, { type: contentType })
+    if (exportAsBlob) {
+      this.canvas.fire('editor:object-exported', activeObjectBlob)
+      return activeObjectBlob
+    }
+
+    // Преобразуем Blob в File
+    const file = new File([activeObjectBlob], fileName, { type: contentType })
     this.canvas.fire('editor:object-exported', { image: file })
 
     return file
@@ -968,14 +967,15 @@ export default ({ fabric, editorOptions }) => ({
   /**
    * Удалить выбранный объект
    * @param {Object} options
+   * @param {fabric.Object[]} options.objects - массив объектов для удаления
    * @param {Boolean} options.withoutSave - Не сохранять состояние
    * @fires editor:object-deleted
    */
   deleteSelectedObjects(options = {}) {
     this.suspendHistory()
-    const { withoutSave } = options
+    const { objects, withoutSave } = options
 
-    const activeObjects = this.canvas.getActiveObjects()
+    const activeObjects = objects || this.canvas.getActiveObjects()
 
     if (!activeObjects?.length) return
 
@@ -1013,6 +1013,8 @@ export default ({ fabric, editorOptions }) => ({
     for (let i = 0; i < currentIndex; i += 1) {
       state = diffPatcher.patch(state, patches[i])
     }
+
+    console.log('getFullState state', state)
     return state
   },
 
@@ -1024,7 +1026,14 @@ export default ({ fabric, editorOptions }) => ({
     if (this.isLoading) return
 
     // Получаем текущее состояние канваса как объект
-    const currentStateObj = this.canvas.toDatalessJSON(['selectable', 'evented', 'id', 'width', 'height'])
+    console.time('saveState')
+    // const currentStateObj = this.canvas.toDatalessJSON(['selectable', 'evented', 'id', 'width', 'height'])
+
+    const currentStateObj = this.canvas.toDatalessObject([
+      'selectable', 'evented', 'id', 'width', 'height'
+    ])
+
+    console.timeEnd('saveState')
 
     // Если базовое состояние ещё не установлено, сохраняем полное состояние как базу
     if (!this.history.baseState) {
@@ -1089,6 +1098,13 @@ export default ({ fabric, editorOptions }) => ({
       this.montageArea = loadedMontage
     }
 
+    const loadedDisabledOverlay = this.canvas.getObjects().find((obj) => obj.id === 'disabled-overlay')
+
+    if (loadedDisabledOverlay) {
+      this.disabledOverlay = loadedDisabledOverlay
+      this.disabledOverlay.visible = false
+    }
+
     this.canvas.renderAll()
 
     this.canvas.fire('editor:history-state-loaded')
@@ -1117,7 +1133,7 @@ export default ({ fabric, editorOptions }) => ({
       console.log('image top', fullState.objects[1]?.top)
       console.log('image left', fullState.objects[1]?.left)
 
-      await this.loadStateFromFullState(JSON.stringify(fullState))
+      await this.loadStateFromFullState(fullState)
 
       console.log('Undo выполнен. Текущий индекс истории:', this.history.currentIndex)
 
@@ -1155,9 +1171,7 @@ export default ({ fabric, editorOptions }) => ({
       this.history.currentIndex += 1
       const fullState = this.getFullState()
       console.log('fullState', fullState)
-      console.log('image top', fullState.objects[1]?.top)
-      console.log('image left', fullState.objects[1]?.left)
-      await this.loadStateFromFullState(JSON.stringify(fullState))
+      await this.loadStateFromFullState(fullState)
       console.log('Redo выполнен. Текущий индекс истории:', this.history.currentIndex)
 
       this.canvas.fire('editor:redo')
@@ -1234,24 +1248,31 @@ export default ({ fabric, editorOptions }) => ({
     const activeObject = this.canvas.getActiveObject()
     if (!activeObject) return
 
-    const clonedObject = await activeObject.clone()
-
-    this.clipboard = clonedObject
-
-    // Сохраняем объект в локальном буфере редактора
-    if (this.clipboard.type !== 'image') {
-      await navigator.clipboard.writeText(['application/image-editor', JSON.stringify(clonedObject)])
-
-      return
-    }
-
-    // Если это изображение, то сохраним его в системном буфере
-    const clonedDataUrl = this.clipboard.toDataURL()
-    const blob = await (await fetch(clonedDataUrl)).blob()
-
-    const clipboardItem = new ClipboardItem({ [blob.type]: blob })
-
     try {
+      const clonedObject = await activeObject.clone()
+      this.clipboard = clonedObject
+
+      // Сохраняем объект в буфере обмена, если он доступен
+      if (typeof ClipboardItem === 'undefined' || !navigator.clipboard) {
+        console.warn(
+          'copy. navigator.clipboard не поддерживается в этом браузере или отсутствует соединение по HTTPS-протоколу'
+        )
+
+        this.canvas.fire('editor:object-copied', { object: clonedObject })
+        return
+      }
+
+      if (this.clipboard.type !== 'image') {
+        await navigator.clipboard.writeText(['application/image-editor', JSON.stringify(clonedObject)])
+
+        this.canvas.fire('editor:object-copied', { object: clonedObject })
+        return
+      }
+
+      const clonedObjectCanvas = clonedObject.toCanvasElement()
+      const clonedObjectBlob = await new Promise((resolve) => { clonedObjectCanvas.toBlob(resolve) })
+
+      const clipboardItem = new ClipboardItem({ [clonedObjectBlob.type]: clonedObjectBlob })
       await navigator.clipboard.write([clipboardItem])
 
       this.canvas.fire('editor:object-copied', { object: clonedObject })
