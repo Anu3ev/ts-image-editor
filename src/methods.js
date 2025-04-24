@@ -473,30 +473,50 @@ export default ({ fabric, editorOptions }) => ({
   /**
    * Импорт изображения
    * @param {Object} options
-   * @param {String} [options.url] - URL изображения
+   * @param {File|string} [options.source] - URL изображения или объект File
    * @param {String} [options.scale] - Если изображение не вписывается в допустимые размеры, то как масштабировать:
    * 'image-contain' - скейлит картинку, чтобы она вписалась в монтажную область
    * 'image-cover' - скейлит картинку, чтобы она вписалась в монтажную область
    * 'scale-montage' - Обновляет backstore-резолюцию монтажной области (масштабирует
    * экспортный размер канваса под размер изображения)
+   * @param {Boolean} [options.withoutSave] - Не сохранять в историю изменений
    */
-  async importImage({ url, scale = `image-${editorOptions.scaleType}`, withoutSave = false }) {
-    if (!url || typeof url !== 'string') return
+  async importImage({
+    source,
+    scale = `image-${editorOptions.scaleType}`,
+    withoutSave = false,
+    contentType = 'image/png'
+  }) {
+    if (!source) return
 
-    if (withoutSave) {
-      this.suspendHistory()
-    }
+    this.suspendHistory()
 
     try {
-      // Загружаем изображение в воркер и получаем blob
-      const blob = await this.postToWorker('loadImage', { url })
-      const dataUrl = URL.createObjectURL(blob)
+      let dataUrl
+      let img
+
+      if (source instanceof File) {
+        dataUrl = URL.createObjectURL(source)
+      } else if (typeof source === 'string') {
+        const resp = await fetch(source, { mode: 'cors' })
+        const blob = await resp.blob({ type: contentType, quality: 1 })
+
+        dataUrl = URL.createObjectURL(blob)
+      } else {
+        throw new Error('ImportImage. Неверный тип источника изображения. Ожидается URL или объект File.')
+      }
 
       // Создаем blobURL и добавляем его в массив для последующего удаления (destroy)
       this._createdBlobUrls.push(dataUrl)
 
-      // Создаем объект FabricImage из blobURL
-      let img = await fabric.FabricImage.fromURL(dataUrl, { crossOrigin: 'anonymous' })
+      // SVG: парсим через loadSVGFromURL и группируем в один объект
+      if (contentType === 'image/svg+xml') {
+        const svgData = await fabric.loadSVGFromURL(dataUrl)
+        img = fabric.util.groupSVGElements(svgData.objects, svgData.options)
+      } else {
+        // Создаем объект FabricImage из blobURL
+        img = await fabric.FabricImage.fromURL(dataUrl, { crossOrigin: 'anonymous' })
+      }
 
       const { width: imageWidth, height: imageHeight } = img
 
@@ -512,19 +532,19 @@ export default ({ fabric, editorOptions }) => ({
 
       // Растягиваем монтажную область под изображение или наоборот
       if (scale === 'scale-montage') {
-        this.scaleMontageAreaToImage({ object: img, withoutSave })
+        this.scaleMontageAreaToImage({ object: img, withoutSave: true })
       } else {
         const { width: montageAreaWidth, height: montageAreaHeight } = this.montageArea
 
         const scaleFactor = calculateScaleFactor({ montageArea: this.montageArea, imageObject: img, scaleType: scale })
 
         if (scale === 'image-contain' && scaleFactor < 1) {
-          this.imageFit({ object: img, type: 'contain' })
+          this.imageFit({ object: img, type: 'contain', withoutSave: true })
         } else if (
           scale === 'image-cover'
           && (imageWidth > montageAreaWidth || imageHeight > montageAreaHeight)
         ) {
-          this.imageFit({ object: img, type: 'cover' })
+          this.imageFit({ object: img, type: 'cover', withoutSave: true })
         }
       }
 
@@ -535,13 +555,19 @@ export default ({ fabric, editorOptions }) => ({
       this.canvas.centerObject(img)
       this.canvas.setActiveObject(img)
       this.canvas.renderAll()
+
+      this.resumeHistory()
+
+      if (!withoutSave) {
+        this.saveState()
+      }
     } catch (error) {
       console.error('importImage. Ошибка импорта изображения: ', error)
 
       this.canvas.fire('editor:error', {
         message: `Ошибка импорта изображения: ${error.message}`
       })
-    } finally {
+
       this.resumeHistory()
     }
   },
