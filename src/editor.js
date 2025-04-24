@@ -1,3 +1,4 @@
+// TODO: Импортировать только то что нужно из fabric
 import * as fabric from 'fabric'
 
 import methods from './methods'
@@ -34,6 +35,8 @@ class ImageEditor {
   constructor(canvasId, options = {}) {
     this.options = options
 
+    const { defaultScale, minZoom, maxZoom, montageAreaWidth, montageAreaHeight } = options
+
     this.isLoading = false
     this.isDisable = false
     this.disabledOverlay = null
@@ -52,16 +55,16 @@ class ImageEditor {
       maxHistoryLength: 50
     }
 
-    this.defaultZoom = options.defaultScale
+    this.defaultZoom = defaultScale
 
-    this.minZoom = options.minZoom || MIN_ZOOM
-    this.maxZoom = options.maxZoom || MAX_ZOOM
+    this.minZoom = minZoom || MIN_ZOOM
+    this.maxZoom = maxZoom || MAX_ZOOM
 
     this.canvas = new fabric.Canvas(canvasId, options)
 
     this.montageArea = new fabric.Rect({
-      width: options.montageAreaWidth,
-      height: options.montageAreaWidth,
+      width: montageAreaWidth,
+      height: montageAreaHeight,
       fill: createMosaicPattern(fabric),
       stroke: null,
       strokeWidth: 0,
@@ -78,12 +81,27 @@ class ImageEditor {
   }
 
   async init() {
+    const {
+      montageAreaWidth,
+      montageAreaHeight,
+      editorContainerWidth,
+      editorContainerHeight,
+      canvasWrapperWidth,
+      canvasWrapperHeight,
+      canvasCSSWidth,
+      canvasCSSHeight,
+      initialImage,
+      initialStateJSON,
+      scaleType,
+      _onReadyCallback
+    } = this.options
+
     this.canvas.add(this.montageArea)
 
     // Создаем область для клиппинга (без fill, чтобы не влиял на экспорт)
     const montageAreaClip = new fabric.Rect({
-      width: this.options.montageAreaWidth,
-      height: this.options.montageAreaWidth,
+      width: montageAreaWidth,
+      height: montageAreaHeight,
       stroke: null,
       strokeWidth: 0,
       selectable: false,
@@ -108,33 +126,40 @@ class ImageEditor {
     this.initEditorWorker()
     this.createDisabledOverlay()
 
-    this.setEditorContainerWidth(this.options.editorContainerWidth)
-    this.setEditorContainerHeight(this.options.editorContainerHeight)
-    this.setCanvasWrapperWidth(this.options.canvasWrapperWidth)
-    this.setCanvasWrapperHeight(this.options.canvasWrapperHeight)
-    this.setCanvasCSSWidth(this.options.canvasCSSWidth)
-    this.setCanvasCSSHeight(this.options.canvasCSSHeight)
+    this.setEditorContainerWidth(editorContainerWidth)
+    this.setEditorContainerHeight(editorContainerHeight)
+    this.setCanvasWrapperWidth(canvasWrapperWidth)
+    this.setCanvasWrapperHeight(canvasWrapperHeight)
+    this.setCanvasCSSWidth(canvasCSSWidth)
+    this.setCanvasCSSHeight(canvasCSSHeight)
 
-    if (this.options.initialImage?.url) {
+    if (initialImage?.source) {
       const {
-        url,
-        scaleType = 'scale-montage',
-        withoutSave = true
-      } = this.options.initialImage
+        source,
+        scale = `image-${scaleType}`,
+        withoutSave = true,
+        contentType
+      } = initialImage
 
-      await this.importImage({ url, scale: scaleType, withoutSave })
+      await this.importImage({ source, scale, withoutSave, contentType })
     } else {
       this.setDefaultScale({ withoutSave: true })
     }
 
-    if (this.options.initialStateJSON) {
-      console.log('options.initialStateJSON', this.options.initialStateJSON)
-      this.loadStateFromFullState(this.options.initialStateJSON)
+    if (initialStateJSON) {
+      this.loadStateFromFullState(initialStateJSON)
     }
 
     this.saveState()
 
+    console.log('editor:ready')
+
     this.canvas.fire('editor:ready', this)
+
+    // вызываем колбэк если он есть
+    if (typeof _onReadyCallback === 'function') {
+      _onReadyCallback(this)
+    }
   }
 
   get skipHistory() {
@@ -147,6 +172,8 @@ class ImageEditor {
   createDisabledOverlay() {
     this.suspendHistory()
 
+    const { disabledOverlayColor } = this.options
+
     // получаем координаты монтажной области
     this.montageArea.setCoords()
     const { left, top, width, height } = this.montageArea.getBoundingRect()
@@ -157,7 +184,7 @@ class ImageEditor {
       top,
       width,
       height,
-      fill: this.options.disabledOverlayColor,
+      fill: disabledOverlayColor,
       selectable: false,
       evented: true,
       hoverCursor: 'not‑allowed',

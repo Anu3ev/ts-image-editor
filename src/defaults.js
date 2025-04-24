@@ -39,7 +39,7 @@ export default {
   /*
   * Объект изображения с которым редактор будет инициализирован. Может содержать:
   *  - {String} url - URL изображения (обязательный)
-  *  - {String} scaleType - Тип скейлинга (contain/cover/scale-montage)
+  *  - {String} scaleType - Тип скейлинга (image-contain/image-cover/scale-montage)
   *  - {Boolean} withoutSave - Не сохранять состояние редактора (по умолчанию false)
   */
   initialImage: null,
@@ -55,6 +55,8 @@ export default {
 
   // Шаг зума
   zoomRatio: 0.1,
+
+  disabledOverlayColor: 'rgba(136, 136, 136, 0.6)',
 
   /*
    * Настройки слушателей событий

@@ -5,24 +5,6 @@ self.onmessage = async(e) => {
 
   try {
     switch (action) {
-    case 'loadImage': {
-      const resp = await fetch(payload.url, { mode: 'cors' })
-      const blob = await resp.blob()
-      const bitmap = await createImageBitmap(blob)
-
-      const { width, height } = bitmap
-
-      const offscreen = new OffscreenCanvas(width, height)
-      offscreen.getContext('2d').drawImage(bitmap, 0, 0, width, height)
-
-      // Конвертируем содержимое canvas в Blob и создаём объект URL
-      const newBlob = await offscreen.convertToBlob()
-
-      // Отправляем bitmap обратно и передаём его в списке transferables
-      self.postMessage({ requestId, action, success: true, data: newBlob })
-      break
-    }
-
     case 'resizeImage': {
       const { dataURL, maxWidth, maxHeight, sizeType } = payload
       const imgBitmap = await createImageBitmap(await (await fetch(dataURL)).blob())
