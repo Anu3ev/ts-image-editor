@@ -509,14 +509,19 @@ export default ({ fabric, editorOptions }) => ({
       // Создаем blobURL и добавляем его в массив для последующего удаления (destroy)
       this._createdBlobUrls.push(dataUrl)
 
+      const format = this.getFormatFromContentType(contentType)
+
       // SVG: парсим через loadSVGFromURL и группируем в один объект
-      if (contentType === 'image/svg+xml') {
+      if (format === 'svg') {
         const svgData = await fabric.loadSVGFromURL(dataUrl)
         img = fabric.util.groupSVGElements(svgData.objects, svgData.options)
       } else {
         // Создаем объект FabricImage из blobURL
         img = await fabric.FabricImage.fromURL(dataUrl, { crossOrigin: 'anonymous' })
       }
+
+      img.set('id', `${img.type}-${nanoid()}`)
+      img.set('format', format)
 
       const { width: imageWidth, height: imageHeight } = img
 
@@ -547,8 +552,6 @@ export default ({ fabric, editorOptions }) => ({
           this.imageFit({ object: img, type: 'cover', withoutSave: true })
         }
       }
-
-      img.set('id', `${img.type}-${nanoid()}`)
 
       // Добавляем изображение, центрируем его и перерисовываем канвас
       this.canvas.add(img)
@@ -601,24 +604,34 @@ export default ({ fabric, editorOptions }) => ({
   /**
    * Масштабирование изображения
    * @param {Object} options
-   * @param {fabric.Object} [options.object] - Объект с изображением, которое нужно масштабировать
+   * @param {Array} [options.objects] - Объект с изображением, которое нужно масштабировать
    * @param {String} [options.type] - Тип масштабирования
    * 'contain' - скейлит картинку, чтобы она вмещалась
    * 'cover' - скейлит картинку, чтобы она вписалась в размер канвас
    * @param {Boolean} [options.withoutSave] - Не сохранять состояние
    * @fires editor:image-fitted
+   *
+   * TODO: Сейчас работает с любыми объектами и выделениями, поэтому можно назвать fitObjects
    */
   imageFit(options = {}) {
-    const { object, type = editorOptions.scaleType, withoutSave } = options
+    const { objects, type = editorOptions.scaleType, withoutSave } = options
 
-    const image = object || this.canvas.getActiveObject()
+    const images = objects || this.canvas.getActiveObjects()
 
-    if (image?.type !== 'image') return
+    images.forEach((image) => {
+      if (!['image', 'group', 'activeselection'].includes(image?.type)) return
 
-    const scaleFactor = calculateScaleFactor({ montageArea: this.montageArea, imageObject: image, scaleType: type })
+      const scaleFactor = calculateScaleFactor({ montageArea: this.montageArea, imageObject: image, scaleType: type })
 
-    image.scale(scaleFactor)
-    this.canvas.centerObject(image)
+      image.scale(scaleFactor)
+      this.canvas.centerObject(image)
+    })
+
+    const sel = new fabric.ActiveSelection(images, {
+      canvas: this.canvas
+    })
+
+    this.canvas.setActiveObject(sel)
     this.canvas.renderAll()
 
     if (!withoutSave) {
@@ -658,7 +671,7 @@ export default ({ fabric, editorOptions }) => ({
 
     if (!currentObject) return
 
-    if (currentObject.type !== 'image') {
+    if (currentObject.type !== 'image' && currentObject.format !== 'svg') {
       currentObject.set({
         scaleX: 1,
         scaleY: 1,
@@ -720,7 +733,7 @@ export default ({ fabric, editorOptions }) => ({
 
     const image = object || this.canvas.getActiveObject()
 
-    if (!image || image.type !== 'image') return
+    if (!image || (image.type !== 'image' && image.format !== 'svg')) return
 
     const { width: imageWidth, height: imageHeight } = image
 
@@ -771,6 +784,45 @@ export default ({ fabric, editorOptions }) => ({
   },
 
   /**
+   * Извлекает чистый формат (subtype) из contentType,
+   * отбросив любую часть после «+» или «;»
+   * @param {string} contentType
+   * @returns {string} формат, например 'png', 'jpeg', 'svg'
+   */
+  getFormatFromContentType(contentType = '') {
+    const match = contentType.match(/^[^/]+\/([^+;]+)/)
+    return match ? match[1] : ''
+  },
+
+  /**
+   * Экспортирует SVG-строку в файл
+   * @param {string} svgString - строка SVG
+   * @param {Object} options - опции
+   * @param {Boolean} options.exportAsBase64 - экспортировать как base64
+   * @param {Boolean} options.exportAsBlob - экспортировать как blob
+   * @param {string} options.fileName - имя файла
+   * @returns {Promise<File> | String} - файл или base64
+   * @fires editor:canvas-exported
+   */
+  _exportSVGStringAsFile(svgString, { exportAsBase64, exportAsBlob, fileName }) {
+    if (exportAsBlob) {
+      const blob = new Blob([svgString], { type: 'image/svg+xml' })
+      return blob
+    }
+
+    if (exportAsBase64) {
+      const b64 = `data:image/svg+xml;base64,${btoa(svgString)}`
+      return b64
+    }
+
+    const svgFile = new File([svgString], fileName.replace(/\.[^/.]+$/, '.svg'), {
+      type: 'image/svg+xml'
+    })
+
+    return svgFile
+  },
+
+  /**
    * Экспорт изображения в файл – экспортируется содержимое монтажной области.
    * Независимо от текущего зума, экспортируется монтажная область в исходном масштабе. Можно экспортировать как base64.
    * @param {Object} options - опции
@@ -793,6 +845,8 @@ export default ({ fabric, editorOptions }) => ({
     // Если это PDF, то дальше нам нужен будет .jpg
     const adjustedContentType = isPDF ? 'image/jpg' : contentType
 
+    const format = this.getFormatFromContentType(adjustedContentType)
+
     // Пересчитываем координаты монтажной области:
     this.montageArea.setCoords()
 
@@ -800,14 +854,12 @@ export default ({ fabric, editorOptions }) => ({
     const { left, top, width, height } = this.montageArea.getBoundingRect()
 
     // Создаем клон канваса
-    const tmpCanvas = await this.canvas.clone(['id'])
+    const tmpCanvas = await this.canvas.clone(['id', 'format'])
 
     // Задаём белый фон если это JPG
     if (['image/jpg', 'image/jpeg'].includes(adjustedContentType)) {
       tmpCanvas.backgroundColor = '#ffffff'
     }
-
-    window.tmpCanvas = tmpCanvas
 
     // Находим монтажную область в клонированном канвасе и скрываем её
     const tmpCanvasMontageArea = tmpCanvas.getObjects().find((obj) => obj.id === this.montageArea.id)
@@ -818,6 +870,35 @@ export default ({ fabric, editorOptions }) => ({
     tmpCanvas.setDimensions({ width, height }, { backstoreOnly: true })
     tmpCanvas.renderAll()
 
+    const allCanvasItemsAreSVG = tmpCanvas.getObjects()
+      .filter((object) => object.format)
+      .every((object) => object.format === 'svg')
+
+    // Если это SVG, то обрезаем через viewportTransform и backstore
+    if (format === 'svg' && allCanvasItemsAreSVG) {
+      // получаем SVG строку
+      const svgString = tmpCanvas.toSVG()
+
+      // Утилизируем клон
+      tmpCanvas.dispose()
+
+      const svg = this._exportSVGStringAsFile(svgString, {
+        exportAsBase64,
+        exportAsBlob,
+        fileName
+      })
+
+      const data = {
+        image: svg,
+        format: 'svg',
+        contentType: 'image/svg+xml',
+        fileName: fileName.replace(/\.[^/.]+$/, '.svg')
+      }
+
+      this.canvas.fire('editor:canvas-exported', data)
+      return data
+    }
+
     // Получаем blob из клонированного канваса
     const blob = await new Promise((resolve) => { tmpCanvas.getElement().toBlob(resolve) })
 
@@ -825,16 +906,23 @@ export default ({ fabric, editorOptions }) => ({
     tmpCanvas.dispose()
 
     if (exportAsBlob) {
-      this.canvas.fire('editor:canvas-exported', blob)
+      const data = {
+        image: blob,
+        format,
+        contentType: adjustedContentType,
+        fileName
+      }
 
-      return blob
+      this.canvas.fire('editor:canvas-exported', data)
+
+      return data
     }
 
     // Создаём bitmap из blob, отправляем в воркер и получаем dataURL
     const bitmap = await createImageBitmap(blob)
     const dataUrl = await this.postToWorker(
       'toDataURL',
-      { format: options.contentType.split('/')[1], quality: 1, bitmap },
+      { format, quality: 1, bitmap },
       [bitmap]
     )
 
@@ -854,28 +942,62 @@ export default ({ fabric, editorOptions }) => ({
 
       if (exportAsBase64) {
         const pdfBase64 = pdf.output('datauristring')
-        this.canvas.fire('editor:canvas-exported', pdfBase64)
-        return pdfBase64
+
+        const data = {
+          image: pdfBase64,
+          format: 'pdf',
+          contentType: 'application/pdf',
+          fileName
+        }
+
+        this.canvas.fire('editor:canvas-exported', data)
+        return data
       }
 
       // Получаем Blob из PDF и создаем File
       const pdfBlob = pdf.output('blob')
       const pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' })
-      this.canvas.fire('editor:canvas-exported', { image: pdfFile })
-      return pdfFile
+
+      const data = {
+        image: pdfFile,
+        format: 'pdf',
+        contentType: 'application/pdf',
+        fileName
+      }
+
+      this.canvas.fire('editor:canvas-exported', data)
+      return data
     }
 
     if (exportAsBase64) {
-      this.canvas.fire('editor:canvas-exported', dataUrl)
+      const data = {
+        image: dataUrl,
+        format,
+        contentType: adjustedContentType,
+        fileName
+      }
 
-      return dataUrl
+      this.canvas.fire('editor:canvas-exported', data)
+      return data
     }
 
-    // Преобразуем Blob в File
-    const file = new File([blob], fileName, { type: adjustedContentType })
-    this.canvas.fire('editor:canvas-exported', { image: file })
+    // Если запрашивали SVG, но не все элементы SVG, то меняем расширение на PNG
+    const adjustedFileName = format === 'svg' && !allCanvasItemsAreSVG
+      ? fileName.replace(/\.[^/.]+$/, '.png')
+      : fileName
 
-    return file
+    // Преобразуем Blob в File
+    const file = new File([blob], adjustedFileName, { type: adjustedContentType })
+
+    const data = {
+      image: file,
+      format,
+      contentType: adjustedContentType,
+      fileName: adjustedFileName
+    }
+
+    this.canvas.fire('editor:canvas-exported', data)
+    return data
   },
 
   /**
@@ -910,36 +1032,79 @@ export default ({ fabric, editorOptions }) => ({
       return ''
     }
 
+    const format = this.getFormatFromContentType(contentType)
+
+    if (format === 'svg') {
+      // Конвертируем fabric.Object в SVG-строку
+      const svgString = activeObject.toSVG()
+
+      const svg = this._exportSVGStringAsFile(svgString, {
+        exportAsBase64,
+        exportAsBlob,
+        fileName
+      })
+
+      const data = {
+        image: svg,
+        format,
+        contentType: 'image/svg+xml',
+        fileName: fileName.replace(/\.[^/.]+$/, '.svg')
+      }
+
+      this.canvas.fire('editor:object-exported', data)
+      return data
+    }
+
     if (exportAsBase64) {
       const bitmap = await createImageBitmap(activeObject._element)
       const dataUrl = await this.postToWorker(
         'toDataURL',
         {
-          format: contentType.split('/')[1],
+          format,
           quality: 1,
           bitmap
         },
         [bitmap]
       )
 
-      this.canvas.fire('editor:object-exported', { image: dataUrl })
+      const data = {
+        image: dataUrl,
+        format,
+        contentType,
+        fileName
+      }
 
-      return dataUrl
+      this.canvas.fire('editor:object-exported', data)
+      return data
     }
 
     const activeObjectCanvas = activeObject.toCanvasElement()
     const activeObjectBlob = await new Promise((resolve) => { activeObjectCanvas.toBlob(resolve) })
 
     if (exportAsBlob) {
-      this.canvas.fire('editor:object-exported', activeObjectBlob)
-      return activeObjectBlob
+      const data = {
+        image: activeObjectBlob,
+        format,
+        contentType,
+        fileName
+      }
+
+      this.canvas.fire('editor:object-exported', data)
+      return data
     }
 
     // Преобразуем Blob в File
     const file = new File([activeObjectBlob], fileName, { type: contentType })
-    this.canvas.fire('editor:object-exported', { image: file })
 
-    return file
+    const data = {
+      image: file,
+      format,
+      contentType,
+      fileName
+    }
+
+    this.canvas.fire('editor:object-exported', data)
+    return data
   },
 
   /**
@@ -1051,12 +1216,11 @@ export default ({ fabric, editorOptions }) => ({
     console.log('saveState')
     if (this.isLoading) return
 
-    // Получаем текущее состояние канваса как объект
     console.time('saveState')
-    // const currentStateObj = this.canvas.toDatalessJSON(['selectable', 'evented', 'id', 'width', 'height'])
 
+    // Получаем текущее состояние канваса как объект
     const currentStateObj = this.canvas.toDatalessObject([
-      'selectable', 'evented', 'id', 'width', 'height'
+      'selectable', 'evented', 'id', 'format', 'width', 'height'
     ])
 
     console.timeEnd('saveState')

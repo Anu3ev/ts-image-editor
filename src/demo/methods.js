@@ -29,24 +29,20 @@ function importImage(e, editorInstance) {
 
   for (let i = 0; i < files.length; i++) {
     (function(file) {
-      const reader = new FileReader()
-      reader.onload = function(f) {
-        editorInstance.importImage({ url: f.target.result })
-      }
-      reader.readAsDataURL(file)
+      editorInstance.importImage({ source: file, contentType: file.type })
     }(files[i]))
   }
 }
 
 // Сохранение результата
 async function saveResult(editorInstance) {
-  const file = await editorInstance.exportCanvasAsImageFile()
+  const { image } = await editorInstance.exportCanvasAsImageFile({ contentType: 'image/svg+xml' })
 
-  const url = URL.createObjectURL(file)
+  const url = URL.createObjectURL(image)
   const link = document.createElement('a')
 
   link.href = url
-  link.download = file.name
+  link.download = image.name
 
   document.body.appendChild(link)
   link.click()
