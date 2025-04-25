@@ -86,6 +86,7 @@ export const diffPatcher = jsondiffpatch.create({
   objectHash(obj) {
     return [
       obj.id,
+      obj.format,
       obj.left,
       obj.top,
       obj.width,
