@@ -520,6 +520,9 @@ export default ({ fabric, editorOptions }) => ({
         img = await fabric.FabricImage.fromURL(dataUrl, { crossOrigin: 'anonymous' })
       }
 
+      img.set('id', `${img.type}-${nanoid()}`)
+      img.set('format', format)
+
       const { width: imageWidth, height: imageHeight } = img
 
       // Если изображение больше максимальных размеров, то даунскейлим его
@@ -549,9 +552,6 @@ export default ({ fabric, editorOptions }) => ({
           this.imageFit({ object: img, type: 'cover', withoutSave: true })
         }
       }
-
-      img.set('id', `${img.type}-${nanoid()}`)
-      img.set('format', format)
 
       // Добавляем изображение, центрируем его и перерисовываем канвас
       this.canvas.add(img)
@@ -604,24 +604,34 @@ export default ({ fabric, editorOptions }) => ({
   /**
    * Масштабирование изображения
    * @param {Object} options
-   * @param {fabric.Object} [options.object] - Объект с изображением, которое нужно масштабировать
+   * @param {Array} [options.objects] - Объект с изображением, которое нужно масштабировать
    * @param {String} [options.type] - Тип масштабирования
    * 'contain' - скейлит картинку, чтобы она вмещалась
    * 'cover' - скейлит картинку, чтобы она вписалась в размер канвас
    * @param {Boolean} [options.withoutSave] - Не сохранять состояние
    * @fires editor:image-fitted
+   *
+   * TODO: Сейчас работает с любыми объектами и выделениями, поэтому можно назвать fitObjects
    */
   imageFit(options = {}) {
-    const { object, type = editorOptions.scaleType, withoutSave } = options
+    const { objects, type = editorOptions.scaleType, withoutSave } = options
 
-    const image = object || this.canvas.getActiveObject()
+    const images = objects || this.canvas.getActiveObjects()
 
-    if (image?.type !== 'image') return
+    images.forEach((image) => {
+      if (!['image', 'group', 'activeselection'].includes(image?.type)) return
 
-    const scaleFactor = calculateScaleFactor({ montageArea: this.montageArea, imageObject: image, scaleType: type })
+      const scaleFactor = calculateScaleFactor({ montageArea: this.montageArea, imageObject: image, scaleType: type })
 
-    image.scale(scaleFactor)
-    this.canvas.centerObject(image)
+      image.scale(scaleFactor)
+      this.canvas.centerObject(image)
+    })
+
+    const sel = new fabric.ActiveSelection(images, {
+      canvas: this.canvas
+    })
+
+    this.canvas.setActiveObject(sel)
     this.canvas.renderAll()
 
     if (!withoutSave) {
@@ -661,7 +671,7 @@ export default ({ fabric, editorOptions }) => ({
 
     if (!currentObject) return
 
-    if (currentObject.type !== 'image') {
+    if (currentObject.type !== 'image' && currentObject.format !== 'svg') {
       currentObject.set({
         scaleX: 1,
         scaleY: 1,
@@ -723,7 +733,7 @@ export default ({ fabric, editorOptions }) => ({
 
     const image = object || this.canvas.getActiveObject()
 
-    if (!image || image.type !== 'image') return
+    if (!image || (image.type !== 'image' && image.format !== 'svg')) return
 
     const { width: imageWidth, height: imageHeight } = image
 
