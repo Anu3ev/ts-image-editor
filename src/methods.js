@@ -535,8 +535,6 @@ export default ({ fabric, editorOptions }) => ({
         img = await fabric.FabricImage.fromURL(resizedBlobURL, { crossOrigin: 'anonymous' })
       }
 
-      console.log('scale', scale)
-
       // Растягиваем монтажную область под изображение или наоборот
       if (scale === 'scale-montage') {
         this.scaleMontageAreaToImage({ object: img, withoutSave: true })
