@@ -60,6 +60,8 @@ class ImageEditor {
     this.minZoom = minZoom || MIN_ZOOM
     this.maxZoom = maxZoom || MAX_ZOOM
 
+    this._customizeControls()
+
     this.canvas = new fabric.Canvas(canvasId, options)
 
     this.montageArea = new fabric.Rect({
@@ -78,6 +80,154 @@ class ImageEditor {
     })
 
     this.init()
+  }
+
+  _customizeControls() {
+    const SQUARE_SIZE = 12
+    const CIRCLE_SIZE = 32
+    const VERTICAL_RECT_SIZE_X = 8
+    const VERTICAL_RECT_SIZE_Y = 20
+    const HORIZONTAL_RECT_SIZE_X = 20
+    const HORIZONTAL_RECT_SIZE_Y = 8
+
+    const defaultControls = fabric.controlsUtils.createObjectDefaultControls()
+
+    // Кастомная отрисовка квадратных контролов (угловые)
+    const renderSquare = (ctx, left, top, styleOverride, fabricObject) => {
+      console.log('renderSquare', ctx, left, top, styleOverride, fabricObject)
+
+      const size = SQUARE_SIZE
+      const radius = 2
+      ctx.save()
+      ctx.translate(left, top)
+      ctx.rotate(fabric.util.degreesToRadians(fabricObject.angle))
+      ctx.fillStyle = '#FFFFFF'
+      ctx.strokeStyle = '#3D8BF4'
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.roundRect(-size / 2, -size / 2, size, size, radius)
+      ctx.fill()
+      ctx.stroke()
+      ctx.restore()
+    }
+
+    // Кастомная отрисовка прямоугольных контролов (середина сторон)
+    const renderVerticalRect = (ctx, left, top, styleOverride, fabricObject) => {
+      const width = VERTICAL_RECT_SIZE_X
+      const height = VERTICAL_RECT_SIZE_Y
+      const radius = 100
+
+      ctx.save()
+      ctx.translate(left, top)
+      ctx.rotate(fabric.util.degreesToRadians(fabricObject.angle))
+      ctx.fillStyle = '#FFFFFF'
+      ctx.strokeStyle = '#3D8BF4'
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.roundRect(-width / 2, -height / 2, width, height, radius)
+      ctx.fill()
+      ctx.stroke()
+      ctx.restore()
+    }
+
+    // Кастомная отрисовка прямоугольных контролов (середина сторон)
+    const renderHorizontalRect = (ctx, left, top, styleOverride, fabricObject) => {
+      const width = HORIZONTAL_RECT_SIZE_X
+      const height = HORIZONTAL_RECT_SIZE_Y
+      const radius = 100
+
+      ctx.save()
+      ctx.translate(left, top)
+      ctx.rotate(fabric.util.degreesToRadians(fabricObject.angle))
+      ctx.fillStyle = '#FFFFFF'
+      ctx.strokeStyle = '#3D8BF4'
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.roundRect(-width / 2, -height / 2, width, height, radius)
+      ctx.fill()
+      ctx.stroke()
+      ctx.restore()
+    }
+
+    const rotateIcon = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCIgZmlsbD0ibm9uZSI+PHBhdGggZmlsbD0iI2ZmZiIgZD0iTTE4Ljc1IDQuMzc1djMuNzVhLjYyNS42MjUgMCAwIDEtLjYyNS42MjVoLTMuNzVhLjYyNS42MjUgMCAwIDEgMC0xLjI1aDIuMTRsLTIuMDc3LTEuOTAzLS4wMi0uMDE5YTYuMjUgNi4yNSAwIDEgMC0uMTMgOC45NjcuNjI2LjYyNiAwIDAgMSAuODYuOTA5QTcuNDU2IDcuNDU2IDAgMCAxIDEwIDE3LjVoLS4xMDNhNy41IDcuNSAwIDEgMSA1LjM5Ni0xMi44MTJMMTcuNSA2LjcwM1Y0LjM3NWEuNjI1LjYyNSAwIDAgMSAxLjI1IDBaIi8+PC9zdmc+'
+
+    var rotateImg = document.createElement('img');
+    rotateImg.src = rotateIcon
+
+    const _renderRotationControl = (ctx, left, top, styleOverride, fabricObject) => {
+      const size = CIRCLE_SIZE
+      const radius = size / 2
+
+      // Рисуем круглый фон
+      ctx.save()
+      ctx.translate(left, top)
+      ctx.rotate(fabric.util.degreesToRadians(fabricObject.angle))
+      ctx.fillStyle = '#2B2D33'
+      ctx.beginPath()
+      ctx.arc(0, 0, radius, 0, 2 * Math.PI)
+      ctx.fill()
+      ctx.drawImage(rotateImg, -radius / 2, -radius / 2, radius, radius)
+      ctx.restore()
+    }
+
+    // const renderIcon = (ctx, left, top, _styleOverride, fabricObject) => {
+    //   const size = 32;
+    //   ctx.save();
+    //   ctx.translate(left, top);
+    //   ctx.rotate(fabric.util.degreesToRadians(fabricObject.angle));
+    //   ctx.drawImage(rotateImg, -size / 2, -size / 2, size, size);
+    //   ctx.restore();
+    // }
+
+    // const deleteBtn = new fabric.Control({
+    //   x: 0.5,
+    //   y: -0.5,
+    //   offsetY: 16,
+    //   cursorStyle: 'pointer',
+    //   mouseUpHandler: rotateImg,
+    //   render: renderIcon,
+    //   cornerSize: 24,
+    // });
+
+    // Применяем кастомные рендеры к каждому типу контролов
+    for (const key in defaultControls) {
+      if (['tl', 'tr', 'bl', 'br'].includes(key)) {
+        defaultControls[key].render = renderSquare
+        defaultControls[key].sizeX = SQUARE_SIZE
+        defaultControls[key].sizeY = SQUARE_SIZE
+      } else if (key === 'mtr') {
+        defaultControls[key].render = _renderRotationControl
+        defaultControls[key].sizeX = CIRCLE_SIZE
+        defaultControls[key].sizeY = CIRCLE_SIZE
+        defaultControls[key].offsetY = -CIRCLE_SIZE
+      } else if (['ml', 'mr'].includes(key)) {
+        defaultControls[key].render = renderVerticalRect
+        defaultControls[key].sizeX = VERTICAL_RECT_SIZE_X
+        defaultControls[key].sizeY = VERTICAL_RECT_SIZE_Y
+      } else {
+        defaultControls[key].render = renderHorizontalRect
+        defaultControls[key].sizeX = HORIZONTAL_RECT_SIZE_X
+        defaultControls[key].sizeY = HORIZONTAL_RECT_SIZE_Y
+      }
+    }
+
+    this.customControls = defaultControls
+
+    const originalAdd = fabric.Canvas.prototype.add
+
+    fabric.Canvas.prototype.add = function(...objects) {
+      objects.forEach((obj) => {
+        console.log('obj', obj)
+        console.log('this', this)
+
+        if (!obj.controlsCustomized) {
+          obj.controls = defaultControls
+          obj.controlsCustomized = true
+        }
+      })
+
+      return originalAdd.call(this, ...objects)
+    }
   }
 
   async init() {

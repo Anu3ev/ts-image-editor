@@ -544,12 +544,12 @@ export default ({ fabric, editorOptions }) => ({
         const scaleFactor = calculateScaleFactor({ montageArea: this.montageArea, imageObject: img, scaleType: scale })
 
         if (scale === 'image-contain' && scaleFactor < 1) {
-          this.imageFit({ object: img, type: 'contain', withoutSave: true })
+          this.imageFit({ objects: [img], type: 'contain', withoutSave: true })
         } else if (
           scale === 'image-cover'
           && (imageWidth > montageAreaWidth || imageHeight > montageAreaHeight)
         ) {
-          this.imageFit({ object: img, type: 'cover', withoutSave: true })
+          this.imageFit({ objects: [img], type: 'cover', withoutSave: true })
         }
       }
 
@@ -685,7 +685,7 @@ export default ({ fabric, editorOptions }) => ({
     }
 
     if (alwaysFitImage) {
-      this.imageFit({ object: currentObject, withoutSave: true })
+      this.imageFit({ objects: [currentObject], withoutSave: true })
     } else {
       const { width: montageAreaWidth, height: montageAreaHeight } = this.montageArea
       const { width: imageWidth, height: imageHeight } = currentObject
@@ -704,7 +704,7 @@ export default ({ fabric, editorOptions }) => ({
           && (imageWidth > montageAreaWidth || imageHeight > montageAreaHeight)
         )
       ) {
-        this.imageFit({ object: currentObject, withoutSave: true })
+        this.imageFit({ objects: [currentObject], withoutSave: true })
       } else {
         currentObject.set({ scaleX: 1, scaleY: 1 })
       }
