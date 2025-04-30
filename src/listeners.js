@@ -1,3 +1,5 @@
+import { ActiveSelection } from 'fabric'
+
 class Listeners {
   /**
    * Конструктор принимает редактор и опции.
@@ -43,6 +45,7 @@ class Listeners {
     this.handleMouseWheelZoomBound = this.handleMouseWheelZoom.bind(this)
     this.handleBringToFrontBound = this.handleBringToFront.bind(this)
     this.handleResetObjectFitBound = this.handleResetObjectFit.bind(this)
+    this.handleLockedSelectionBound = this._filterLockedSelection.bind(this)
 
     this.init()
   }
@@ -119,6 +122,49 @@ class Listeners {
     // Инициализация событий для disabledOverlay
     this.canvas.on('object:added', this.handleOverlayUpdateBound)
     this.canvas.on('selection:created', this.handleOverlayUpdateBound)
+
+    this.canvas.on('selection:created', this.handleLockedSelectionBound.bind(this))
+    this.canvas.on('selection:updated', this.handleLockedSelectionBound.bind(this))
+  }
+
+  /**
+   * При массовом выделении объектов удаляем из него залоченные.
+   */
+  _filterLockedSelection({ selected }) {
+    console.log('selected', selected)
+    if (!selected?.length) return
+
+    //  Если объект один, то просто делаем его активным, не важно залочен он или нет
+    if (selected.length === 1) {
+      this.canvas.setActiveObject(selected[0])
+      return
+    }
+
+    // Если нет залоченных объектов, то ничего не делаем
+    const hasLocked = selected.some((obj) => obj.locked)
+    if (!hasLocked) return
+
+    // Получаем только те объекты, которые не залочены
+    const allowed = selected.filter((obj) => !obj.locked)
+
+    // Если ни одного разрешённого объекта, то снимаем выделение
+    if (allowed.length === 0) {
+      this.canvas.discardActiveObject()
+      return
+    }
+
+    // Если только один разрешённый объект, то делаем его активным
+    if (allowed.length === 1) {
+      this.canvas.setActiveObject(allowed[0])
+      return
+    }
+
+    // Если несколько разрешённых объектов, то создаём новый ActiveSelection и делаем его активным
+    const newSel = new ActiveSelection(allowed, {
+      canvas: this.canvas
+    })
+    this.canvas.setActiveObject(newSel)
+    this.canvas.requestRenderAll()
   }
 
   /**
@@ -354,7 +400,6 @@ class Listeners {
    * @param {Array} event.selected - массив выбранных объектов
    */
   handleBringToFront({ selected }) {
-    console.log('handleBringToFront')
     if (!selected?.length) return
     selected.forEach((obj) => {
       this.editor.bringToFront(obj)
@@ -406,6 +451,9 @@ class Listeners {
 
     this.canvas.off('object:added', this.handleOverlayUpdateBound)
     this.canvas.off('selection:created', this.handleOverlayUpdateBound)
+
+    this.canvas.off('selection:created', this.handleLockedSelectionBound.bind(this))
+    this.canvas.off('selection:updated', this.handleLockedSelectionBound.bind(this))
   }
 }
 

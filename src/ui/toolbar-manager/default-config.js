@@ -1,44 +1,97 @@
+import {
+  copyPasteIcon,
+  lockIcon,
+  unlockIcon,
+  bringForwardIcon,
+  sendBackwardsIcon,
+  bringToFrontIcon,
+  sendToBackIcon,
+  deleteIcon
+} from './icons'
+
 export default {
   style: {
     position: 'absolute',
     display: 'none',
-    background: '#000',
+    background: '#2B2D33',
     borderRadius: '8px',
-    padding: '4px 8px',
-    gap: '8px',
+    padding: '0 8px',
+    height: '32px',
+    gap: '10px',
     zIndex: 10,
     alignItems: 'center'
   },
 
-  actions: ['copyPaste', 'delete', 'lock', 'bringForward', 'sendBack'],
+  btnStyle: {
+    background: 'transparent',
+    border: 'none',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: '20px',
+    width: '20px',
+    cursor: 'pointer',
+    transition: 'background-color 0.2s ease, transform 0.1s ease',
+    transform: 'scale(1)'
+  },
+
+  btnHover: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: '50%',
+    transform: 'scale(1.1)'
+  },
+
+  toolbarClass: 'fabric-editor-toolbar',
+  btnClass: 'fabric-editor-toolbar-btn',
+
+  lockedActions: ['unlock'],
+  actions: ['copyPaste', 'lock', 'bringToFront', 'sendToBack', 'bringForward', 'sendBackwards', 'delete'],
+
+  offsetTop: 50,
+
+  icons: {
+    copyPaste: copyPasteIcon,
+    delete: deleteIcon,
+    lock: lockIcon,
+    unlock: unlockIcon,
+    bringToFront: bringToFrontIcon,
+    sendToBack: sendToBackIcon,
+    bringForward: bringForwardIcon,
+    sendBackwards: sendBackwardsIcon
+  },
 
   handlers: {
-    copyPaste: (editor) => {
-      console.log('copyPaste')
+    copyPaste: async(editor) => {
+      await editor.copy()
+      await editor.paste()
     },
 
     delete: (editor) => {
-      console.log('delete')
+      editor.deleteSelectedObjects()
     },
 
     lock: (editor) => {
-      console.log('lock')
+      editor.lockObject()
+    },
+
+    unlock: (editor) => {
+      editor.unlockObject()
     },
 
     bringForward: (editor) => {
-      console.log('bringForward')
+      editor.bringForward()
     },
 
-    sendBack: (editor) => {
-      console.log('sendBack')
-    }
-  },
+    bringToFront: (editor) => {
+      editor.bringToFront()
+    },
 
-  icons: {
-    copyPaste: '📋',
-    delete: '🗑️',
-    lock: '🔒',
-    bringForward: '⬆️',
-    sendBack: '⬇️'
+    sendToBack: (editor) => {
+      editor.sendToBack()
+    },
+
+    sendBackwards: (editor) => {
+      editor.sendBackwards()
+    }
   }
 }

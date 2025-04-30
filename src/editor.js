@@ -1,6 +1,7 @@
 // TODO: Импортировать только то что нужно из fabric
 import * as fabric from 'fabric'
 
+import { nanoid } from 'nanoid'
 import methods from './methods'
 import Listeners from './listeners'
 import CustomizedControls from './customized-controls'
@@ -14,6 +15,7 @@ import {
 import {
   createMosaicPattern
 } from './helpers'
+
 
 // TODO: Режим рисования
 // TODO: Тулбар появляющийся под выделенным объектом и возможность передачи кнопок в тулбар
@@ -38,6 +40,8 @@ class ImageEditor {
 
     const { defaultScale, minZoom, maxZoom, montageAreaWidth, montageAreaHeight } = options
 
+    this.containerId = canvasId
+    this.editorId = `${canvasId}-${nanoid()}`
     this.isLoading = false
     this.isDisable = false
     this.disabledOverlay = null
@@ -65,6 +69,7 @@ class ImageEditor {
 
     this.canvas = new fabric.Canvas(canvasId, options)
 
+    // TODO: Рассмотреть возможность использования свойства excludeFromExport
     this.montageArea = new fabric.Rect({
       width: montageAreaWidth,
       height: montageAreaHeight,
@@ -234,6 +239,7 @@ class ImageEditor {
    */
   destroy() {
     this.listeners.destroy()
+    this.toolbar.destroy()
     this.canvas.dispose()
     this.worker.terminate()
 
