@@ -70,6 +70,11 @@ export default class ToolbarManager {
     this.el.addEventListener('mouseout', this._onBtnOut)
   }
 
+  /**
+   * Отрисовывает кнопки панели инструментов
+   * @private
+   * @param {array} actions - массив действий для отрисовки
+   */
   _renderButtons(actions) {
     this.el.innerHTML = ''
     for (const action of actions) {
