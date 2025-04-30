@@ -40,8 +40,40 @@ export default {
   // Можно передать массив с названиями действий или объект с настройками, кастомными иконками и обработчиками
   // ui/toolbar-manager/default-config.js
   toolbar: {
-    actions: ['copyPaste', 'lock', 'bringToFront', 'sendToBack', 'bringForward', 'sendBackwards', 'delete'],
-    lockedActions: ['unlock']
+    lockedActions: [{
+      name: 'Разблокировать',
+      handle: 'unlock'
+    }],
+    actions: [
+      {
+        name: 'Создать копию',
+        handle: 'copyPaste'
+      },
+      {
+        name: 'Заблокировать',
+        handle: 'lock'
+      },
+      {
+        name: 'На передний план',
+        handle: 'bringToFront'
+      },
+      {
+        name: 'На задний план',
+        handle: 'sendToBack'
+      },
+      {
+        name: 'На один уровень вверх',
+        handle: 'bringForward'
+      },
+      {
+        name: 'На один уровень вниз',
+        handle: 'sendBackwards'
+      },
+      {
+        name: 'Удалить',
+        handle: 'delete'
+      }
+    ]
   },
 
   // Можно передать JSON объект в виде строки для инициализации редактора

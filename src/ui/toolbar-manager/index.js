@@ -55,25 +55,33 @@ export default class ToolbarManager {
 
     Object.assign(this.el.style, style)
     this.canvas.wrapperEl.appendChild(this.el)
+
+    this._onBtnOver = (e) => {
+      const btn = e.target.closest('button')
+      if (!btn) return
+      Object.assign(btn.style, this.config.btnHover)
+    }
+    this._onBtnOut = (e) => {
+      const btn = e.target.closest('button')
+      if (!btn) return
+      Object.assign(btn.style, this.config.btnStyle)
+    }
+    this.el.addEventListener('mouseover', this._onBtnOver)
+    this.el.addEventListener('mouseout', this._onBtnOut)
   }
 
-  _renderButtons(names) {
+  _renderButtons(actions) {
     this.el.innerHTML = ''
-    for (const name of names) {
+    for (const action of actions) {
+      const { name, handle } = action
+
       const btn = document.createElement('button')
 
-      btn.innerHTML = this.config.icons[name] ? `<img src="${this.config.icons[name]}" />` : name
+      btn.innerHTML = this.config.icons[handle] ? `<img src="${this.config.icons[handle]}" title="${name}" />` : name
 
       Object.assign(btn.style, this.config.btnStyle)
 
-      btn.addEventListener('mouseenter', () => {
-        Object.assign(btn.style, this.config.btnHover)
-      })
-      btn.addEventListener('mouseleave', () => {
-        Object.assign(btn.style, this.config.btnStyle)
-      })
-
-      btn.onclick = () => this.config.handlers[name]?.(this.editor)
+      btn.onclick = () => this.config.handlers[handle]?.(this.editor)
       this.el.appendChild(btn)
     }
   }
@@ -148,10 +156,11 @@ export default class ToolbarManager {
     if (obj !== this.currentTarget || locked !== this.currentLocked) {
       this.currentTarget = obj
       this.currentLocked = locked
-      const names = locked
+      const actions = locked
         ? this.config.lockedActions
         : this.config.actions
-      this._renderButtons(names)
+
+      this._renderButtons(actions)
     }
 
     this._updatePos()
@@ -210,6 +219,9 @@ export default class ToolbarManager {
    * Удаляет слушатели событий и DOM элемент панели инструментов
    */
   destroy() {
+    this.el.removeEventListener('mouseover', this._onBtnOver)
+    this.el.removeEventListener('mouseout', this._onBtnOut)
+
     this.canvas.off('mouse:down')
     this.canvas.off('mouse:up')
     this.canvas.off('object:moving')
