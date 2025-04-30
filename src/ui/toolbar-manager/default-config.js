@@ -44,8 +44,41 @@ export default {
   toolbarClass: 'fabric-editor-toolbar',
   btnClass: 'fabric-editor-toolbar-btn',
 
-  lockedActions: ['unlock'],
-  actions: ['copyPaste', 'lock', 'bringToFront', 'sendToBack', 'bringForward', 'sendBackwards', 'delete'],
+  lockedActions: [{
+    name: 'Разблокировать',
+    handle: 'unlock'
+  }],
+
+  actions: [
+    {
+      name: 'Создать копию',
+      handle: 'copyPaste'
+    },
+    {
+      name: 'Заблокировать',
+      handle: 'lock'
+    },
+    {
+      name: 'На передний план',
+      handle: 'bringToFront'
+    },
+    {
+      name: 'На задний план',
+      handle: 'sendToBack'
+    },
+    {
+      name: 'На один уровень вверх',
+      handle: 'bringForward'
+    },
+    {
+      name: 'На один уровень вниз',
+      handle: 'sendBackwards'
+    },
+    {
+      name: 'Удалить',
+      handle: 'delete'
+    }
+  ],
 
   offsetTop: 50,
 
