@@ -392,6 +392,86 @@ export default ({ fabric, editorOptions }) => ({
     this.resumeHistory()
   },
 
+  lockObject(options = {}) {
+    const { object, withoutSave } = options
+
+    const activeObject = object || this.canvas.getActiveObject()
+
+    if (!activeObject) return
+
+    activeObject.set({
+      lockMovementX: true,
+      lockMovementY: true,
+      lockRotation: true,
+      lockScalingX: true,
+      lockScalingY: true,
+      lockSkewingX: true,
+      lockSkewingY: true,
+      locked: true
+    })
+
+    if (['activeselection', 'group'].includes(activeObject.type)) {
+      activeObject.getObjects().forEach((obj) => {
+        obj.set({
+          lockMovementX: true,
+          lockMovementY: true,
+          lockRotation: true,
+          lockScalingX: true,
+          lockScalingY: true,
+          lockSkewingX: true,
+          lockSkewingY: true,
+          locked: true
+        })
+      })
+    }
+
+    this.canvas.renderAll()
+
+    if (!withoutSave) {
+      this.saveState()
+    }
+  },
+
+  unlockObject(options = {}) {
+    const { object, withoutSave } = options
+
+    const activeObject = object || this.canvas.getActiveObject()
+
+    if (!activeObject) return
+
+    activeObject.set({
+      lockMovementX: false,
+      lockMovementY: false,
+      lockRotation: false,
+      lockScalingX: false,
+      lockScalingY: false,
+      lockSkewingX: false,
+      lockSkewingY: false,
+      locked: false
+    })
+
+    if (['activeselection', 'group'].includes(activeObject.type)) {
+      activeObject.getObjects().forEach((obj) => {
+        obj.set({
+          lockMovementX: false,
+          lockMovementY: false,
+          lockRotation: false,
+          lockScalingX: false,
+          lockScalingY: false,
+          lockSkewingX: false,
+          lockSkewingY: false,
+          locked: false
+        })
+      })
+    }
+
+    this.canvas.renderAll()
+
+    if (!withoutSave) {
+      this.saveState()
+    }
+  },
+
   /**
    * Выключает редактор:
    * 1) убирает все селекты, события мыши, скейл/драг–н–дроп
@@ -612,6 +692,7 @@ export default ({ fabric, editorOptions }) => ({
    * @fires editor:image-fitted
    *
    * TODO: Сейчас работает с любыми объектами и выделениями, поэтому можно назвать fitObjects
+   * TODO: Переписать по аналогии с lockObjects
    */
   imageFit(options = {}) {
     const { objects, type = editorOptions.scaleType, withoutSave } = options
@@ -854,7 +935,7 @@ export default ({ fabric, editorOptions }) => ({
     const { left, top, width, height } = this.montageArea.getBoundingRect()
 
     // Создаем клон канваса
-    const tmpCanvas = await this.canvas.clone(['id', 'format'])
+    const tmpCanvas = await this.canvas.clone(['id', 'format', 'locked'])
 
     // Задаём белый фон если это JPG
     if (['image/jpg', 'image/jpeg'].includes(adjustedContentType)) {
@@ -1161,6 +1242,8 @@ export default ({ fabric, editorOptions }) => ({
    * @param {fabric.Object[]} options.objects - массив объектов для удаления
    * @param {Boolean} options.withoutSave - Не сохранять состояние
    * @fires editor:object-deleted
+   *
+   * TODO: Переписать по аналогии с lockObjects
    */
   deleteSelectedObjects(options = {}) {
     this.suspendHistory()
@@ -1220,7 +1303,7 @@ export default ({ fabric, editorOptions }) => ({
 
     // Получаем текущее состояние канваса как объект
     const currentStateObj = this.canvas.toDatalessObject([
-      'selectable', 'evented', 'id', 'format', 'width', 'height'
+      'selectable', 'evented', 'id', 'format', 'width', 'height', 'locked'
     ])
 
     console.timeEnd('saveState')

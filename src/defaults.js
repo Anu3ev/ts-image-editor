@@ -38,8 +38,10 @@ export default {
 
   // Настройки панели инструментов выделенного объекта.
   // Можно передать массив с названиями действий или объект с настройками, кастомными иконками и обработчиками
+  // ui/toolbar-manager/default-config.js
   toolbar: {
-    actions: ['copyPaste', 'delete', 'lock', 'bringForward', 'sendBack']
+    actions: ['copyPaste', 'lock', 'bringToFront', 'sendToBack', 'bringForward', 'sendBackwards', 'delete'],
+    lockedActions: ['unlock']
   },
 
   // Можно передать JSON объект в виде строки для инициализации редактора
