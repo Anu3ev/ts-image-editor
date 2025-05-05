@@ -33,10 +33,9 @@ export default ({ fabric, editorOptions }) => ({
    * @param {Boolean} options.withoutSave - Не сохранять состояние
    * @fires editor:resolution-width-changed
    */
-  setResolutionWidth(width, options = {}) {
+  setResolutionWidth(width, { preserveProportional, withoutSave, adaptCanvasToContainer } = {}) {
     if (!width) return
 
-    const { preserveProportional, withoutSave, adaptCanvasToContainer } = options
     const { width: montageAreaWidth, height: montageAreaHeight } = this.montageArea
 
     const adjustedWidth = Number(Math.max(Math.min(width, CANVAS_MAX_WIDTH), CANVAS_MIN_WIDTH))
@@ -89,10 +88,9 @@ export default ({ fabric, editorOptions }) => ({
    * @param {Boolean} options.withoutSave - Не сохранять состояние
    * @fires editor:resolution-height-changed
    */
-  setResolutionHeight(height, options = {}) {
+  setResolutionHeight(height, { preserveProportional, withoutSave, adaptCanvasToContainer } = {}) {
     if (!height) return
 
-    const { preserveProportional, withoutSave, adaptCanvasToContainer } = options
     const { width: montageAreaWidth, height: montageAreaHeight } = this.montageArea
 
     const adjustedHeight = Number(Math.max(Math.min(height, CANVAS_MAX_HEIGHT), CANVAS_MIN_HEIGHT))
@@ -316,7 +314,7 @@ export default ({ fabric, editorOptions }) => ({
    * @param {string|number} [options.value]
    * @fires editor:display-{element}-{dimension}-changed
    */
-  setDisplayDimension({ element, dimension, value }) {
+  setDisplayDimension({ element, dimension, value } = {}) {
     if (!value) return
 
     const canvasElements = []
@@ -392,14 +390,19 @@ export default ({ fabric, editorOptions }) => ({
     this.resumeHistory()
   },
 
-  lockObject(options = {}) {
-    const { object, withoutSave } = options
-
+  /**
+   * Блокирует объект (или группу объектов) на канвасе
+   * @param {Object} options
+   * @param {fabric.Object} [options.object] - объект, который нужно заблокировать
+   * @param {Boolean} [options.withoutSave] - не сохранять состояние
+   * @returns
+   */
+  lockObject({ object, withoutSave } = {}) {
     const activeObject = object || this.canvas.getActiveObject()
 
     if (!activeObject) return
 
-    activeObject.set({
+    const lockOptions = {
       lockMovementX: true,
       lockMovementY: true,
       lockRotation: true,
@@ -408,20 +411,13 @@ export default ({ fabric, editorOptions }) => ({
       lockSkewingX: true,
       lockSkewingY: true,
       locked: true
-    })
+    }
+
+    activeObject.set(lockOptions)
 
     if (['activeselection', 'group'].includes(activeObject.type)) {
       activeObject.getObjects().forEach((obj) => {
-        obj.set({
-          lockMovementX: true,
-          lockMovementY: true,
-          lockRotation: true,
-          lockScalingX: true,
-          lockScalingY: true,
-          lockSkewingX: true,
-          lockSkewingY: true,
-          locked: true
-        })
+        obj.set(lockOptions)
       })
     }
 
@@ -432,9 +428,14 @@ export default ({ fabric, editorOptions }) => ({
     }
   },
 
-  unlockObject(options = {}) {
-    const { object, withoutSave } = options
-
+  /**
+   * Разблокирует объект (или группу объектов) на канвасе
+   * @param {Object} options
+   * @param {fabric.Object} [options.object] - объект, который нужно разблокировать
+   * @param {Boolean} [options.withoutSave] - не сохранять состояние
+   * @returns
+   */
+  unlockObject({ object, withoutSave } = {}) {
     const activeObject = object || this.canvas.getActiveObject()
 
     if (!activeObject) return
@@ -624,12 +625,12 @@ export default ({ fabric, editorOptions }) => ({
         const scaleFactor = calculateScaleFactor({ montageArea: this.montageArea, imageObject: img, scaleType: scale })
 
         if (scale === 'image-contain' && scaleFactor < 1) {
-          this.imageFit({ objects: [img], type: 'contain', withoutSave: true })
+          this.fitObject({ object: img, type: 'contain', withoutSave: true })
         } else if (
           scale === 'image-cover'
           && (imageWidth > montageAreaWidth || imageHeight > montageAreaHeight)
         ) {
-          this.imageFit({ objects: [img], type: 'cover', withoutSave: true })
+          this.fitObject({ object: img, type: 'cover', withoutSave: true })
         }
       }
 
@@ -684,35 +685,42 @@ export default ({ fabric, editorOptions }) => ({
   /**
    * Масштабирование изображения
    * @param {Object} options
-   * @param {Array} [options.objects] - Объект с изображением, которое нужно масштабировать
+   * @param {fabric.Object} [options.object] - Объект с изображением, которое нужно масштабировать
    * @param {String} [options.type] - Тип масштабирования
    * 'contain' - скейлит картинку, чтобы она вмещалась
    * 'cover' - скейлит картинку, чтобы она вписалась в размер канвас
    * @param {Boolean} [options.withoutSave] - Не сохранять состояние
    * @fires editor:image-fitted
-   *
-   * TODO: Сейчас работает с любыми объектами и выделениями, поэтому можно назвать fitObjects
-   * TODO: Переписать по аналогии с lockObjects
    */
-  imageFit(options = {}) {
-    const { objects, type = editorOptions.scaleType, withoutSave } = options
+  fitObject({ object, type = editorOptions.scaleType, withoutSave } = {}) {
+    const image = object || this.canvas.getActiveObject()
 
-    const images = objects || this.canvas.getActiveObjects()
+    if (!image) return
 
-    images.forEach((image) => {
-      if (!['image', 'group', 'activeselection'].includes(image?.type)) return
+    if (['activeselection', 'group'].includes(image.type)) {
+      const selectedItems = image.getObjects()
 
+      this.canvas.discardActiveObject()
+
+      selectedItems.forEach((obj) => {
+        const objScale = calculateScaleFactor({ montageArea: this.montageArea, imageObject: obj, scaleType: type })
+
+        obj.scale(objScale)
+        this.canvas.centerObject(obj)
+      })
+
+      const sel = new fabric.ActiveSelection(selectedItems, {
+        canvas: this.canvas
+      })
+
+      this.canvas.setActiveObject(sel)
+    } else {
       const scaleFactor = calculateScaleFactor({ montageArea: this.montageArea, imageObject: image, scaleType: type })
 
       image.scale(scaleFactor)
       this.canvas.centerObject(image)
-    })
+    }
 
-    const sel = new fabric.ActiveSelection(images, {
-      canvas: this.canvas
-    })
-
-    this.canvas.setActiveObject(sel)
     this.canvas.renderAll()
 
     if (!withoutSave) {
@@ -747,7 +755,7 @@ export default ({ fabric, editorOptions }) => ({
    * @param {Boolean} [fitOnlyBigImage] - растягивать только большие изображения
    * @returns
    */
-  resetObject(object, alwaysFitImage = false) {
+  resetObject(object, { alwaysFitObject = false, withoutSave = false } = {}) {
     const currentObject = object || this.canvas.getActiveObject()
 
     if (!currentObject) return
@@ -765,8 +773,8 @@ export default ({ fabric, editorOptions }) => ({
       this.canvas.renderAll()
     }
 
-    if (alwaysFitImage) {
-      this.imageFit({ objects: [currentObject], withoutSave: true })
+    if (alwaysFitObject) {
+      this.fitObject({ object: currentObject, withoutSave: true })
     } else {
       const { width: montageAreaWidth, height: montageAreaHeight } = this.montageArea
       const { width: imageWidth, height: imageHeight } = currentObject
@@ -785,7 +793,7 @@ export default ({ fabric, editorOptions }) => ({
           && (imageWidth > montageAreaWidth || imageHeight > montageAreaHeight)
         )
       ) {
-        this.imageFit({ objects: [currentObject], withoutSave: true })
+        this.fitObject({ object: currentObject, withoutSave: true })
       } else {
         currentObject.set({ scaleX: 1, scaleY: 1 })
       }
@@ -799,6 +807,10 @@ export default ({ fabric, editorOptions }) => ({
 
     this.canvas.centerObject(currentObject)
     this.canvas.renderAll()
+
+    if (!withoutSave) {
+      this.saveState()
+    }
   },
 
   /**
@@ -809,9 +821,7 @@ export default ({ fabric, editorOptions }) => ({
    * @param {Boolean} [options.preserveAspectRatio] - Сохранять изначальные пропорции монтажной области
    * @fires editor:canvas-scaled
    */
-  scaleMontageAreaToImage(options = {}) {
-    const { object, preserveAspectRatio, withoutSave } = options
-
+  scaleMontageAreaToImage({ object, preserveAspectRatio, withoutSave } = {}) {
     const image = object || this.canvas.getActiveObject()
 
     if (!image || (image.type !== 'image' && image.format !== 'svg')) return
@@ -885,7 +895,7 @@ export default ({ fabric, editorOptions }) => ({
    * @returns {Promise<File> | String} - файл или base64
    * @fires editor:canvas-exported
    */
-  _exportSVGStringAsFile(svgString, { exportAsBase64, exportAsBlob, fileName }) {
+  _exportSVGStringAsFile(svgString, { exportAsBase64, exportAsBlob, fileName } = {}) {
     if (exportAsBlob) {
       const blob = new Blob([svgString], { type: 'image/svg+xml' })
       return blob
@@ -914,14 +924,12 @@ export default ({ fabric, editorOptions }) => ({
    * @returns {Promise<File> | String} - файл или base64
    * @fires editor:canvas-exported
    */
-  async exportCanvasAsImageFile(options = {}) {
-    const {
-      fileName = 'image.png',
-      contentType = 'image/png',
-      exportAsBase64 = false,
-      exportAsBlob = false
-    } = options
-
+  async exportCanvasAsImageFile({
+    fileName = 'image.png',
+    contentType = 'image/png',
+    exportAsBase64 = false,
+    exportAsBlob = false
+  } = {}) {
     const isPDF = contentType === 'application/pdf'
     // Если это PDF, то дальше нам нужен будет .jpg
     const adjustedContentType = isPDF ? 'image/jpg' : contentType
@@ -1092,15 +1100,13 @@ export default ({ fabric, editorOptions }) => ({
    * @returns {String} base64
    * @fires editor:object-exported
    */
-  async exportObjectAsImageFile(options = {}) {
-    const {
-      object,
-      fileName = 'image.png',
-      contentType = 'image/png',
-      exportAsBase64 = false,
-      exportAsBlob = false
-    } = options
-
+  async exportObjectAsImageFile({
+    object,
+    fileName = 'image.png',
+    contentType = 'image/png',
+    exportAsBase64 = false,
+    exportAsBlob = false
+  } = {}) {
     const activeObject = object || this.canvas.getActiveObject()
 
     if (!activeObject) {
@@ -1245,9 +1251,8 @@ export default ({ fabric, editorOptions }) => ({
    *
    * TODO: Переписать по аналогии с lockObjects
    */
-  deleteSelectedObjects(options = {}) {
+  deleteSelectedObjects({ objects, withoutSave } = {}) {
     this.suspendHistory()
-    const { objects, withoutSave } = options
 
     const activeObjects = objects || this.canvas.getActiveObjects()
 
@@ -1728,16 +1733,21 @@ export default ({ fabric, editorOptions }) => ({
    * @param {Boolean} options.withoutSave - Не сохранять состояние
    * @fires editor:object-bring-to-front
    */
-  bringToFront(object, options = {}) {
+  bringToFront(object, { withoutSave } = {}) {
     this.suspendHistory()
-
-    const { withoutSave } = options
 
     const activeObject = object || this.canvas.getActiveObject()
 
     if (!activeObject) return
 
-    this.canvas.bringObjectToFront(activeObject)
+    if (['activeselection', 'group'].includes(activeObject.type)) {
+      activeObject.getObjects().forEach((obj) => {
+        this.canvas.bringObjectToFront(obj)
+      })
+    } else {
+      this.canvas.bringObjectToFront(activeObject)
+    }
+
     this.canvas.renderAll()
     this.resumeHistory()
 
@@ -1755,15 +1765,21 @@ export default ({ fabric, editorOptions }) => ({
    * @param {Boolean} options.withoutSave - Не сохранять состояние
    * @fires editor:object-bring-forward
    */
-  bringForward(object, options = {}) {
+  bringForward(object, { withoutSave } = {}) {
     this.suspendHistory()
-    const { withoutSave } = options
 
     const activeObject = object || this.canvas.getActiveObject()
 
     if (!activeObject) return
 
-    this.canvas.bringObjectForward(activeObject)
+    if (['activeselection', 'group'].includes(activeObject.type)) {
+      activeObject.getObjects().forEach((obj) => {
+        this.canvas.bringObjectForward(obj)
+      })
+    } else {
+      this.canvas.bringObjectForward(activeObject)
+    }
+
     this.canvas.renderAll()
     this.resumeHistory()
 
@@ -1781,16 +1797,23 @@ export default ({ fabric, editorOptions }) => ({
   * @param {Boolean} options.withoutSave - Не сохранять состояние
   * @fires editor:object-send-to-back
   */
-  sendToBack(object, options = {}) {
+  sendToBack(object, { withoutSave } = {}) {
     this.suspendHistory()
-    const { withoutSave } = options
 
     const activeObject = object || this.canvas.getActiveObject()
 
     if (!activeObject) return
 
-    this.canvas.sendObjectToBack(activeObject)
-    this.canvas.sendObjectToBack(this.montageArea)
+    if (['activeselection', 'group'].includes(activeObject.type)) {
+      activeObject.getObjects().forEach((obj) => {
+        this.canvas.sendObjectToBack(obj)
+        this.canvas.sendObjectToBack(this.montageArea)
+      })
+    } else {
+      this.canvas.sendObjectToBack(activeObject)
+      this.canvas.sendObjectToBack(this.montageArea)
+    }
+
     this.canvas.renderAll()
 
     this.resumeHistory()
@@ -1808,18 +1831,24 @@ export default ({ fabric, editorOptions }) => ({
   * @param {Object} options
   * @param {Boolean} options.withoutSave - Не сохранять состояние
   */
-  sendBackwards(object, options = {}) {
+  sendBackwards(object, { withoutSave } = {}) {
     this.suspendHistory()
-    const { withoutSave } = options
 
     const activeObject = object || this.canvas.getActiveObject()
 
     if (!activeObject) return
 
-    this.canvas.sendObjectBackwards(activeObject)
-    this.canvas.sendObjectToBack(this.montageArea)
-    this.canvas.renderAll()
+    if (['activeselection', 'group'].includes(activeObject.type)) {
+      activeObject.getObjects().forEach((obj) => {
+        this.canvas.sendObjectBackwards(obj)
+        this.canvas.sendObjectToBack(this.montageArea)
+      })
+    } else {
+      this.canvas.sendObjectBackwards(activeObject)
+      this.canvas.sendObjectToBack(this.montageArea)
+    }
 
+    this.canvas.renderAll()
     this.resumeHistory()
 
     if (!withoutSave) {
@@ -1836,9 +1865,7 @@ export default ({ fabric, editorOptions }) => ({
    * @param {Boolean} options.withoutSave - Не сохранять состояние
    * @fires editor:object-rotated
    */
-  rotate(angle = DEFAULT_ROTATE_RATIO, options = {}) {
-    const { withoutSave } = options
-
+  rotate(angle = DEFAULT_ROTATE_RATIO, { withoutSave } = {}) {
     const obj = this.canvas.getActiveObject()
     if (!obj) return
     const newAngle = obj.angle + angle
@@ -1860,9 +1887,7 @@ export default ({ fabric, editorOptions }) => ({
    * @param {Boolean} options.withoutSave - Не сохранять состояние
    * @fires editor:object-flipped-x
    */
-  flipX(options = {}) {
-    const { withoutSave } = options
-
+  flipX({ withoutSave } = {}) {
     const obj = this.canvas.getActiveObject()
     if (!obj) return
     obj.flipX = !obj.flipX
@@ -1881,9 +1906,7 @@ export default ({ fabric, editorOptions }) => ({
    * @param {Boolean} options.withoutSave - Не сохранять состояние
    * @fires editor:object-flipped-y
    */
-  flipY(options = {}) {
-    const { withoutSave } = options
-
+  flipY({ withoutSave } = {}) {
     const obj = this.canvas.getActiveObject()
     if (!obj) return
     obj.flipY = !obj.flipY
@@ -1923,17 +1946,15 @@ export default ({ fabric, editorOptions }) => ({
    * @param {String} options.originX - Ориентация по X
    * @param {String} options.originY - Ориентация по Y
    */
-  addRectangle(options = {}) {
-    const {
-      left,
-      top,
-      width = 100,
-      height = 100,
-      color = 'blue',
-      originX = 'center',
-      originY = 'center'
-    } = options
-
+  addRectangle({
+    left,
+    top,
+    width = 100,
+    height = 100,
+    color = 'blue',
+    originX = 'center',
+    originY = 'center'
+  } = {}) {
     const rect = new fabric.Rect({
       id: `rect-${nanoid()}`,
       left,
@@ -1964,16 +1985,14 @@ export default ({ fabric, editorOptions }) => ({
    * @param {String} options.originX - Ориентация по X
    * @param {String} options.originY - Ориентация по Y
    */
-  addCircle(options = {}) {
-    const {
-      left,
-      top,
-      radius = 50,
-      color = 'green',
-      originX = 'center',
-      originY = 'center'
-    } = options
-
+  addCircle({
+    left,
+    top,
+    radius = 50,
+    color = 'green',
+    originX = 'center',
+    originY = 'center'
+  } = {}) {
     const circle = new fabric.Circle({
       id: `circle-${nanoid()}`,
       left,
@@ -2004,17 +2023,15 @@ export default ({ fabric, editorOptions }) => ({
    * @param {String} options.originX - Ориентация по X
    * @param {String} options.originY - Ориентация по Y
    */
-  addTriangle(options = {}) {
-    const {
-      left,
-      top,
-      width = 100,
-      height = 100,
-      originX = 'center',
-      originY = 'center',
-      color = 'yellow'
-    } = options
-
+  addTriangle({
+    left,
+    top,
+    width = 100,
+    height = 100,
+    originX = 'center',
+    originY = 'center',
+    color = 'yellow'
+  } = {}) {
     const triangle = new fabric.Triangle({
       id: `triangle-${nanoid()}`,
       left,
