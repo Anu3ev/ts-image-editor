@@ -40,6 +40,15 @@ export default class ToolbarManager {
     this.currentLocked = null
     this.isTransforming = false
 
+    this._onMouseDown = this._handleMouseDown.bind(this)
+    this._onObjectMoving = this._startTransform.bind(this)
+    this._onObjectScaling = this._startTransform.bind(this)
+    this._onObjectRotating = this._startTransform.bind(this)
+    this._onMouseUp = this._endTransform.bind(this)
+    this._onObjectModified = this._endTransform.bind(this)
+    this._onSelectionChange = this._updateToolbar.bind(this)
+    this._onSelectionClear = () => { this.el.style.display = 'none' }
+
     this._createDOM()
     this._bindEvents()
   }
@@ -74,19 +83,22 @@ export default class ToolbarManager {
    * Отрисовывает кнопки панели инструментов
    * @private
    * @param {array} actions - массив действий для отрисовки
+   * @param {string} actions[].name - название действия
+   * @param {string} actions[].handle - название обработчика
    */
   _renderButtons(actions) {
     this.el.innerHTML = ''
     for (const action of actions) {
       const { name, handle } = action
+      const { icons, btnStyle, handlers } = this.config
 
       const btn = document.createElement('button')
 
-      btn.innerHTML = this.config.icons[handle] ? `<img src="${this.config.icons[handle]}" title="${name}" />` : name
+      btn.innerHTML = icons[handle] ? `<img src="${icons[handle]}" title="${name}" />` : name
 
-      Object.assign(btn.style, this.config.btnStyle)
+      Object.assign(btn.style, btnStyle)
 
-      btn.onclick = () => this.config.handlers[handle]?.(this.editor)
+      btn.onclick = () => handlers[handle]?.(this.editor)
       this.el.appendChild(btn)
     }
   }
@@ -97,30 +109,32 @@ export default class ToolbarManager {
    */
   _bindEvents() {
     // На время трансформации скрываем тулбар
-    this.canvas.on('mouse:down', (opt) => {
-      if (opt.transform?.actionPerformed) {
-        this._startTransform()
-      }
-    })
+    this.canvas.on('mouse:down', this._onMouseDown)
+    this.canvas.on('object:moving', this._onObjectMoving)
+    this.canvas.on('object:scaling', this._onObjectScaling)
+    this.canvas.on('object:rotating', this._onObjectRotating)
 
-    this.canvas.on('object:moving', () => this._startTransform())
-    this.canvas.on('object:scaling', () => this._startTransform())
-    this.canvas.on('object:rotating', () => this._startTransform())
+    this.canvas.on('mouse:up', this._onMouseUp)
+    this.canvas.on('object:modified', this._onObjectModified)
 
-    // При завершении трансформации показываем тулбар и обновляем его позицию
-    this.canvas.on('mouse:up', () => this._endTransform())
-    this.canvas.on('object:modified', () => this._endTransform())
+    // 2) выделение / рендер
+    this.canvas.on('selection:created', this._onSelectionChange)
+    this.canvas.on('selection:updated', this._onSelectionChange)
+    this.canvas.on('selection:changed', this._onSelectionChange)
+    this.canvas.on('after:render', this._onSelectionChange)
 
-    // При изменении выделения обновляем позицию тулбара
-    const upd = () => this._updateToolbar()
-    this.canvas.on('selection:created', upd)
-    this.canvas.on('selection:updated', upd)
-    this.canvas.on('selection:changed', upd)
-    this.canvas.on('object:modified', upd)
-    this.canvas.on('after:render', upd)
+    this.canvas.on('selection:cleared', this._onSelectionClear)
+  }
 
-    // Если выделение снято, скрываем тулбар
-    this.canvas.on('selection:cleared', () => { this.el.style.display = 'none' })
+  /**
+   * На время трансформации скрываем тулбар
+   * @private
+   * @param {Object} opt - объект события
+   */
+  _handleMouseDown(opt) {
+    if (opt.transform?.actionPerformed) {
+      this._startTransform()
+    }
   }
 
   /**
@@ -227,17 +241,20 @@ export default class ToolbarManager {
     this.el.removeEventListener('mouseover', this._onBtnOver)
     this.el.removeEventListener('mouseout', this._onBtnOut)
 
-    this.canvas.off('mouse:down')
-    this.canvas.off('mouse:up')
-    this.canvas.off('object:moving')
-    this.canvas.off('object:scaling')
-    this.canvas.off('object:rotating')
-    this.canvas.off('object:modified')
-    this.canvas.off('selection:created')
-    this.canvas.off('selection:updated')
-    this.canvas.off('selection:changed')
-    this.canvas.off('after:render')
-    this.canvas.off('selection:cleared')
+    this.canvas.off('mouse:down', this._onMouseDown)
+    this.canvas.off('object:moving', this._onObjectMoving)
+    this.canvas.off('object:scaling', this._onObjectScaling)
+    this.canvas.off('object:rotating', this._onObjectRotating)
+
+    this.canvas.off('mouse:up', this._onMouseUp)
+    this.canvas.off('object:modified', this._onObjectModified)
+
+    this.canvas.off('selection:created', this._onSelectionChange)
+    this.canvas.off('selection:updated', this._onSelectionChange)
+    this.canvas.off('selection:changed', this._onSelectionChange)
+    this.canvas.off('after:render', this._onSelectionChange)
+
+    this.canvas.off('selection:cleared', this._onSelectionClear)
 
     this.el.remove()
   }
