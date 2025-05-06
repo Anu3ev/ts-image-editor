@@ -1,5 +1,4 @@
-// TODO: Импортировать только то что нужно из fabric
-import * as fabric from 'fabric'
+import { Canvas, Rect } from 'fabric'
 
 import { nanoid } from 'nanoid'
 import methods from './methods'
@@ -17,13 +16,13 @@ import {
 } from './helpers'
 
 // TODO: Режим рисования
-// TODO: Тулбар появляющийся под выделенным объектом и возможность передачи кнопок в тулбар
-// TODO: Кастомные стили
 // TODO: Добавление текста
 // TODO: drag'n'drop картинки
 // TODO: Сделать снэп (прилипание к краям и центру)
 // TODO: Разделить внутренние методы и публичные
 // TODO: Подумать как работать с переводами в редакторе
+// TODO: Поработать с автоматическим рассчётом высоты монтажной области
+// TODO: Если айтем заблокирован, то при вызове resetObject мы не должны ничего делать
 
 /**
  * Класс редактора изображений.
@@ -66,13 +65,15 @@ class ImageEditor {
 
     CustomizedControls.apply()
 
-    this.canvas = new fabric.Canvas(canvasId, options)
+    this.canvas = new Canvas(canvasId, options)
+
+    this.toolbar = new ToolbarManager(this)
 
     // TODO: Рассмотреть возможность использования свойства excludeFromExport
-    this.montageArea = new fabric.Rect({
+    this.montageArea = new Rect({
       width: montageAreaWidth,
       height: montageAreaHeight,
-      fill: createMosaicPattern(fabric),
+      fill: createMosaicPattern(),
       stroke: null,
       strokeWidth: 0,
       selectable: false,
@@ -106,7 +107,7 @@ class ImageEditor {
     this.canvas.add(this.montageArea)
 
     // Создаем область для клиппинга (без fill, чтобы не влиял на экспорт)
-    const montageAreaClip = new fabric.Rect({
+    const montageAreaClip = new Rect({
       width: montageAreaWidth,
       height: montageAreaHeight,
       stroke: null,
@@ -122,10 +123,7 @@ class ImageEditor {
 
     Object.assign(
       this,
-      methods({
-        fabric,
-        editorOptions: this.options
-      })
+      methods({ editorOptions: this.options })
     )
 
     this.listeners = new Listeners({ editor: this, options: this.options })
@@ -159,8 +157,6 @@ class ImageEditor {
 
     this.saveState()
 
-    this.toolbar = new ToolbarManager(this)
-
     console.log('editor:ready')
     this.canvas.fire('editor:ready', this)
 
@@ -187,7 +183,7 @@ class ImageEditor {
     const { left, top, width, height } = this.montageArea.getBoundingRect()
 
     // создаём overlay‑объект
-    this.disabledOverlay = new fabric.Rect({
+    this.disabledOverlay = new Rect({
       left,
       top,
       width,

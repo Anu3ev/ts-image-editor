@@ -1,3 +1,15 @@
+import {
+  Point,
+  loadSVGFromURL,
+  FabricImage,
+  util,
+  ActiveSelection,
+  Group,
+  Rect,
+  Circle,
+  Triangle
+} from 'fabric'
+
 import { nanoid } from 'nanoid'
 import { jsPDF as JsPDF } from 'jspdf'
 
@@ -12,7 +24,6 @@ import {
 
 import {
   calculateScaleFactor,
-  centerCanvas,
   diffPatcher
 } from './helpers'
 
@@ -24,7 +35,7 @@ import {
  *
  * @returns {Object} методы для работы с канвасом
  */
-export default ({ fabric, editorOptions }) => ({
+export default ({ editorOptions }) => ({
   /**
    * Устанавливаем внутреннюю ширину канваса (для экспорта)
    * @param {String} width
@@ -69,9 +80,6 @@ export default ({ fabric, editorOptions }) => ({
     const currentZoom = this.canvas.getZoom()
 
     this.canvas.setViewportTransform([currentZoom, 0, 0, currentZoom, left, top])
-
-    // Центрируем montageArea и clipPath
-    centerCanvas(this.canvas, this.montageArea)
 
     if (!withoutSave) {
       this.saveState()
@@ -124,9 +132,6 @@ export default ({ fabric, editorOptions }) => ({
     const currentZoom = this.canvas.getZoom()
     this.canvas.setViewportTransform([currentZoom, 0, 0, currentZoom, left, top])
 
-    // Центрируем clipPath и монтажную область относительно новых размеров
-    // centerCanvas(this.canvas, this.montageArea)
-
     this.centerMontageArea()
 
     if (!withoutSave) {
@@ -146,7 +151,7 @@ export default ({ fabric, editorOptions }) => ({
 
     const currentZoom = this.canvas.getZoom()
 
-    const centerCanvasPoint = new fabric.Point(canvasWidth / 2, canvasHeight / 2)
+    const centerCanvasPoint = new Point(canvasWidth / 2, canvasHeight / 2)
 
     // Устанавливаем origin монтажной области в центр канваса без зума
     this.montageArea.set({
@@ -594,11 +599,11 @@ export default ({ fabric, editorOptions }) => ({
 
       // SVG: парсим через loadSVGFromURL и группируем в один объект
       if (format === 'svg') {
-        const svgData = await fabric.loadSVGFromURL(dataUrl)
-        img = fabric.util.groupSVGElements(svgData.objects, svgData.options)
+        const svgData = await loadSVGFromURL(dataUrl)
+        img = util.groupSVGElements(svgData.objects, svgData.options)
       } else {
         // Создаем объект FabricImage из blobURL
-        img = await fabric.FabricImage.fromURL(dataUrl, { crossOrigin: 'anonymous' })
+        img = await FabricImage.fromURL(dataUrl, { crossOrigin: 'anonymous' })
       }
 
       img.set('id', `${img.type}-${nanoid()}`)
@@ -613,7 +618,7 @@ export default ({ fabric, editorOptions }) => ({
         this._createdBlobUrls.push(resizedBlobURL)
 
         // Создаем новый объект FabricImage из уменьшенного dataURL
-        img = await fabric.FabricImage.fromURL(resizedBlobURL, { crossOrigin: 'anonymous' })
+        img = await FabricImage.fromURL(resizedBlobURL, { crossOrigin: 'anonymous' })
       }
 
       // Растягиваем монтажную область под изображение или наоборот
@@ -709,7 +714,7 @@ export default ({ fabric, editorOptions }) => ({
         this.canvas.centerObject(obj)
       })
 
-      const sel = new fabric.ActiveSelection(selectedItems, {
+      const sel = new ActiveSelection(selectedItems, {
         canvas: this.canvas
       })
 
@@ -1196,22 +1201,36 @@ export default ({ fabric, editorOptions }) => ({
 
   /**
    * Группировка объектов
+   * @param {Object} options
+   * @param {Boolean} options.withoutSave - Не сохранять состояние
+   * @param {fabric.Object[]} options.objects - массив объектов для группировки
    * @fires editor:objects-grouped
    */
-  group() {
+  group({ withoutSave } = {}) {
     this.suspendHistory()
     const activeObject = this.canvas.getActiveObject()
     if (!activeObject) return
 
-    if (activeObject.type !== 'activeSelection' && activeObject.type !== 'activeselection') {
+    if (activeObject.type !== 'activeselection') {
       return
     }
 
-    const group = new fabric.Group(this.canvas.getActiveObject().removeAll())
+    // Получаем все объекты внутри активной селекции, группируем их и удаляем из канваса
+    const objectsToGroup = activeObject.getObjects()
+
+    const group = new Group(objectsToGroup)
+    objectsToGroup.forEach((obj) => this.canvas.remove(obj))
+
+    group.set('id', `${group.type}-${nanoid()}`)
     this.canvas.add(group)
     this.canvas.setActiveObject(group)
     this.canvas.renderAll()
+
     this.resumeHistory()
+
+    if (!withoutSave) {
+      this.saveState()
+    }
 
     this.canvas.fire('editor:objects-grouped')
   },
@@ -1231,7 +1250,7 @@ export default ({ fabric, editorOptions }) => ({
     }
 
     this.canvas.remove(group)
-    const sel = new fabric.ActiveSelection(group.removeAll(), {
+    const sel = new ActiveSelection(group.removeAll(), {
       canvas: this.canvas
     })
 
@@ -1243,13 +1262,11 @@ export default ({ fabric, editorOptions }) => ({
   },
 
   /**
-   * Удалить выбранный объект
+   * Удалить выбранные объекты
    * @param {Object} options
    * @param {fabric.Object[]} options.objects - массив объектов для удаления
    * @param {Boolean} options.withoutSave - Не сохранять состояние
    * @fires editor:object-deleted
-   *
-   * TODO: Переписать по аналогии с lockObjects
    */
   deleteSelectedObjects({ objects, withoutSave } = {}) {
     this.suspendHistory()
@@ -1508,7 +1525,7 @@ export default ({ fabric, editorOptions }) => ({
   selectAll() {
     this.canvas.discardActiveObject()
 
-    const sel = new fabric.ActiveSelection(this.getObjects(), {
+    const sel = new ActiveSelection(this.getObjects(), {
       canvas: this.canvas
     })
 
@@ -1579,7 +1596,7 @@ export default ({ fabric, editorOptions }) => ({
       top: clonedObj.top + 10,
       evented: true
     })
-    if (clonedObj instanceof fabric.ActiveSelection) {
+    if (clonedObj instanceof ActiveSelection) {
       // active selection needs a reference to the canvas.
       clonedObj.canvas = this.canvas
       clonedObj.forEachObject((obj) => {
@@ -1714,7 +1731,6 @@ export default ({ fabric, editorOptions }) => ({
     this.resetZoom()
     this.setResolutionWidth(editorOptions.montageAreaWidth, { withoutSave: true })
     this.setResolutionHeight(editorOptions.montageAreaHeight, { withoutSave: true })
-    centerCanvas(this.canvas, this.montageArea)
     this.canvas.renderAll()
 
     this.resetObjects()
@@ -1740,7 +1756,7 @@ export default ({ fabric, editorOptions }) => ({
 
     if (!activeObject) return
 
-    if (['activeselection', 'group'].includes(activeObject.type)) {
+    if (activeObject.type === 'activeselection') {
       activeObject.getObjects().forEach((obj) => {
         this.canvas.bringObjectToFront(obj)
       })
@@ -1772,10 +1788,29 @@ export default ({ fabric, editorOptions }) => ({
 
     if (!activeObject) return
 
-    if (['activeselection', 'group'].includes(activeObject.type)) {
-      activeObject.getObjects().forEach((obj) => {
-        this.canvas.bringObjectForward(obj)
-      })
+    if (activeObject.type === 'activeselection') {
+      const canvasObjects = this.canvas.getObjects()
+      const selectedObjects = activeObject.getObjects()
+
+      // Сдвигаем выделенные объекты вверх относительно ближайшего верхнего объекта, начиная с верхнего
+      for (let i = selectedObjects.length - 1; i >= 0; i -= 1) {
+        const obj = selectedObjects[i]
+        const currentIndex = canvasObjects.indexOf(obj)
+
+        let nextIndex = currentIndex + 1
+
+        // Ищем ближайший индекс сверху, не входящий в выделение
+        while (
+          nextIndex < canvasObjects.length
+        && selectedObjects.includes(canvasObjects[nextIndex])
+        ) {
+          nextIndex += 1
+        }
+
+        if (nextIndex === canvasObjects.length) continue
+
+        this.canvas.moveObjectTo(obj, nextIndex)
+      }
     } else {
       this.canvas.bringObjectForward(activeObject)
     }
@@ -1791,12 +1826,12 @@ export default ({ fabric, editorOptions }) => ({
   },
 
   /**
-  * Отправить объект на задний план по оси Z
-  * @param {fabric.Object} object
-  * @param {Object} options
-  * @param {Boolean} options.withoutSave - Не сохранять состояние
-  * @fires editor:object-send-to-back
-  */
+ * Отправить объект на задний план по оси Z
+ * @param {fabric.Object} object
+ * @param {Object} options
+ * @param {Boolean} options.withoutSave - Не сохранять состояние
+ * @fires editor:object-send-to-back
+ */
   sendToBack(object, { withoutSave } = {}) {
     this.suspendHistory()
 
@@ -1804,18 +1839,22 @@ export default ({ fabric, editorOptions }) => ({
 
     if (!activeObject) return
 
-    if (['activeselection', 'group'].includes(activeObject.type)) {
-      activeObject.getObjects().forEach((obj) => {
-        this.canvas.sendObjectToBack(obj)
-        this.canvas.sendObjectToBack(this.montageArea)
-      })
+    if (activeObject.type === 'activeselection') {
+      const selectedObjects = activeObject.getObjects()
+
+      // Отправляем объекты на нижний слой, начиная с нижнего объекта выделения
+      for (let i = selectedObjects.length - 1; i >= 0; i -= 1) {
+        this.canvas.sendObjectToBack(selectedObjects[i])
+      }
     } else {
       this.canvas.sendObjectToBack(activeObject)
-      this.canvas.sendObjectToBack(this.montageArea)
     }
 
-    this.canvas.renderAll()
+    // Служебные элементы отправляем вниз
+    this.canvas.sendObjectToBack(this.montageArea)
+    this.canvas.sendObjectToBack(this.disabledOverlay)
 
+    this.canvas.renderAll()
     this.resumeHistory()
 
     if (!withoutSave) {
@@ -1838,15 +1877,25 @@ export default ({ fabric, editorOptions }) => ({
 
     if (!activeObject) return
 
-    if (['activeselection', 'group'].includes(activeObject.type)) {
-      activeObject.getObjects().forEach((obj) => {
-        this.canvas.sendObjectBackwards(obj)
-        this.canvas.sendObjectToBack(this.montageArea)
-      })
+    // Обработка активного выделения
+    if (activeObject.type === 'activeselection') {
+      const canvasObjects = this.canvas.getObjects()
+      const selectedObjects = activeObject.getObjects()
+
+      // Находим минимальный индекс среди выделенных объектов
+      const minSelectedIndex = Math.min(...selectedObjects.map((obj) => canvasObjects.indexOf(obj)))
+
+      // Перемещаем выделенные объекты вниз относительно ближайшего нижнего объекта, начиная с нижнего
+      for (let i = selectedObjects.length - 1; i >= 0; i -= 1) {
+        this.canvas.moveObjectTo(selectedObjects[i], minSelectedIndex - 1)
+      }
     } else {
       this.canvas.sendObjectBackwards(activeObject)
-      this.canvas.sendObjectToBack(this.montageArea)
     }
+
+    // Служебные элементы отправляем вниз
+    this.canvas.sendObjectToBack(this.montageArea)
+    this.canvas.sendObjectToBack(this.disabledOverlay)
 
     this.canvas.renderAll()
     this.resumeHistory()
@@ -1955,7 +2004,7 @@ export default ({ fabric, editorOptions }) => ({
     originX = 'center',
     originY = 'center'
   } = {}) {
-    const rect = new fabric.Rect({
+    const rect = new Rect({
       id: `rect-${nanoid()}`,
       left,
       top,
@@ -1993,7 +2042,7 @@ export default ({ fabric, editorOptions }) => ({
     originX = 'center',
     originY = 'center'
   } = {}) {
-    const circle = new fabric.Circle({
+    const circle = new Circle({
       id: `circle-${nanoid()}`,
       left,
       top,
@@ -2032,7 +2081,7 @@ export default ({ fabric, editorOptions }) => ({
     originY = 'center',
     color = 'yellow'
   } = {}) {
-    const triangle = new fabric.Triangle({
+    const triangle = new Triangle({
       id: `triangle-${nanoid()}`,
       left,
       top,
