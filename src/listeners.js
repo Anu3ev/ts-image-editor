@@ -135,10 +135,7 @@ class Listeners {
     if (!selected?.length) return
 
     //  Если объект один, то просто делаем его активным, не важно залочен он или нет
-    if (selected.length === 1) {
-      this.canvas.setActiveObject(selected[0])
-      return
-    }
+    if (selected.length === 1) return
 
     // Если нет залоченных объектов, то ничего не делаем
     const hasLocked = selected.some((obj) => obj.locked)
