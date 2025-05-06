@@ -759,11 +759,14 @@ export default ({ editorOptions }) => ({
    * @param {fabric.Object} object
    * @param {Boolean} [fitOnlyBigImage] - растягивать только большие изображения
    * @returns
+   * @fires editor:object-reset
    */
   resetObject(object, { alwaysFitObject = false, withoutSave = false } = {}) {
     const currentObject = object || this.canvas.getActiveObject()
 
     if (!currentObject) return
+
+    this.suspendHistory()
 
     if (currentObject.type !== 'image' && currentObject.format !== 'svg') {
       currentObject.set({
@@ -813,9 +816,13 @@ export default ({ editorOptions }) => ({
     this.canvas.centerObject(currentObject)
     this.canvas.renderAll()
 
+    this.resumeHistory()
+
     if (!withoutSave) {
       this.saveState()
     }
+
+    this.canvas.fire('editor:object-reset')
   },
 
   /**
@@ -868,7 +875,7 @@ export default ({ editorOptions }) => ({
       this.calculateAndApplyDefaultZoom(montageAreaWidth, montageAreaHeight)
     }
 
-    this.resetObject(image, true)
+    this.resetObject(image, { withoutSave: true })
     this.canvas.centerObject(image)
     this.canvas.renderAll()
 
@@ -1981,14 +1988,24 @@ export default ({ editorOptions }) => ({
    * Установка прозрачности объекта
    * @param {Number} opacity - Прозрачность от 0 до 1
    * @fires editor:object-opacity-changed
-   * TODO: Сейвить состояние
    */
-  setActiveObjectOpacity(opacity = 1) {
-    const obj = this.canvas.getActiveObject()
-    if (!obj) return
+  setActiveObjectOpacity({ object, opacity = 1, withoutSave } = {}) {
+    const activeObject = object || this.canvas.getActiveObject()
+    if (!activeObject) return
 
-    obj.set('opacity', opacity)
+    if (activeObject.type === 'activeselection') {
+      activeObject.getObjects().forEach((obj) => {
+        obj.set('opacity', opacity)
+      })
+    } else {
+      activeObject.set('opacity', opacity)
+    }
+
     this.canvas.renderAll()
+
+    if (!withoutSave) {
+      this.saveState()
+    }
 
     this.canvas.fire('editor:object-opacity-changed', opacity)
   },
