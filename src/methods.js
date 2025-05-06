@@ -1240,23 +1240,32 @@ export default ({ editorOptions }) => ({
    * @param {fabric.Group} obj - группа объектов
    * @fires editor:objects-ungrouped
    */
-  ungroup(obj) {
+  ungroup({ object, withoutSave } = {}) {
     this.suspendHistory()
 
-    const group = obj || this.canvas.getActiveObject()
+    const group = object || this.canvas.getActiveObject()
 
     if (!group || group.type !== 'group') {
       return
     }
 
+    const grouppedObjects = group.removeAll()
     this.canvas.remove(group)
-    const sel = new ActiveSelection(group.removeAll(), {
+
+    grouppedObjects.forEach((grouppedObj) => this.canvas.add(grouppedObj))
+
+    const sel = new ActiveSelection(grouppedObjects, {
       canvas: this.canvas
     })
 
     this.canvas.setActiveObject(sel)
     this.canvas.renderAll()
+
     this.resumeHistory()
+
+    if (!withoutSave) {
+      this.saveState()
+    }
 
     this.canvas.fire('editor:objects-ungrouped')
   },
