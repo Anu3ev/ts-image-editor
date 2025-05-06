@@ -82,12 +82,12 @@ export default (editorInstance) => {
 
   // Image fit contain
   imageFitContainBtn.addEventListener('click', () => {
-    editorInstance.imageFit({ type: 'contain' })
+    editorInstance.fitObject({ type: 'contain' })
   })
 
   // Image fit cover
   imageFitCoverBtn.addEventListener('click', () => {
-    editorInstance.imageFit({ type: 'cover' })
+    editorInstance.fitObject({ type: 'cover' })
   })
 
   // Bring to front

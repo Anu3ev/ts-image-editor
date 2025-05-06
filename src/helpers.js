@@ -1,4 +1,5 @@
-import * as jsondiffpatch from 'jsondiffpatch'
+import { create as diffPatchCreate } from 'jsondiffpatch'
+import { Pattern } from 'fabric'
 
 /**
  * Рассчитывает коэффициент масштабирования изображения.
@@ -47,10 +48,9 @@ export function calculateCanvasMultiplier({ canvas, imageObject }) {
 
 /**
  * Создает паттерн мозаики.
- * @param {object} fabric - объект библиотеки Fabric.js
  * @returns {object} паттерн мозаики
  */
-export function createMosaicPattern(fabric) {
+export function createMosaicPattern() {
   const patternSourceCanvas = document.createElement('canvas')
   patternSourceCanvas.width = 20
   patternSourceCanvas.height = 20
@@ -61,28 +61,13 @@ export function createMosaicPattern(fabric) {
   pCtx.fillRect(0, 0, 10, 10)
   pCtx.fillRect(10, 10, 10, 10)
 
-  return new fabric.Pattern({
+  return new Pattern({
     source: patternSourceCanvas,
     repeat: 'repeat'
   })
 }
 
-/**
- * Центрирует канвас и монтажную область.
- * @param {Canvas} canvas - объект канваса
- * @param {object} montageArea - объект монтажной области
- */
-export function centerCanvas(canvas, montageArea) {
-  if (!canvas || !montageArea) return
-
-  montageArea.setCoords()
-  canvas.clipPath.setCoords()
-  canvas.centerObject(montageArea)
-  canvas.centerObject(canvas.clipPath)
-  canvas.renderAll()
-}
-
-export const diffPatcher = jsondiffpatch.create({
+export const diffPatcher = diffPatchCreate({
   objectHash(obj) {
     return [
       obj.id,
