@@ -81,7 +81,8 @@ export const diffPatcher = diffPatchCreate({
       obj.flipY,
       obj.scaleX,
       obj.scaleY,
-      obj.angle
+      obj.angle,
+      obj.opacity
     ].join('-')
   },
 

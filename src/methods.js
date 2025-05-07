@@ -401,6 +401,7 @@ export default ({ editorOptions }) => ({
    * @param {fabric.Object} [options.object] - объект, который нужно заблокировать
    * @param {Boolean} [options.withoutSave] - не сохранять состояние
    * @returns
+   * @fires editor:object-locked
    */
   lockObject({ object, withoutSave } = {}) {
     const activeObject = object || this.canvas.getActiveObject()
@@ -431,6 +432,8 @@ export default ({ editorOptions }) => ({
     if (!withoutSave) {
       this.saveState()
     }
+
+    this.canvas.fire('editor:object-locked', { object: activeObject })
   },
 
   /**
@@ -439,13 +442,14 @@ export default ({ editorOptions }) => ({
    * @param {fabric.Object} [options.object] - объект, который нужно разблокировать
    * @param {Boolean} [options.withoutSave] - не сохранять состояние
    * @returns
+   * @fires editor:object-unlocked
    */
   unlockObject({ object, withoutSave } = {}) {
     const activeObject = object || this.canvas.getActiveObject()
 
     if (!activeObject) return
 
-    activeObject.set({
+    const unlockOptions = {
       lockMovementX: false,
       lockMovementY: false,
       lockRotation: false,
@@ -454,20 +458,13 @@ export default ({ editorOptions }) => ({
       lockSkewingX: false,
       lockSkewingY: false,
       locked: false
-    })
+    }
+
+    activeObject.set(unlockOptions)
 
     if (['activeselection', 'group'].includes(activeObject.type)) {
       activeObject.getObjects().forEach((obj) => {
-        obj.set({
-          lockMovementX: false,
-          lockMovementY: false,
-          lockRotation: false,
-          lockScalingX: false,
-          lockScalingY: false,
-          lockSkewingX: false,
-          lockSkewingY: false,
-          locked: false
-        })
+        obj.set(unlockOptions)
       })
     }
 
@@ -476,6 +473,8 @@ export default ({ editorOptions }) => ({
     if (!withoutSave) {
       this.saveState()
     }
+
+    this.canvas.fire('editor:object-unlocked', { object: activeObject })
   },
 
   /**
@@ -764,7 +763,7 @@ export default ({ editorOptions }) => ({
   resetObject(object, { alwaysFitObject = false, withoutSave = false } = {}) {
     const currentObject = object || this.canvas.getActiveObject()
 
-    if (!currentObject) return
+    if (!currentObject || currentObject.locked) return
 
     this.suspendHistory()
 
