@@ -16,9 +16,6 @@ export default function initEditor(containerId, options = {}) {
     return Promise.reject(new Error(`Контейнер с ID "${containerId}" не найден.`))
   }
 
-  container.style.width = adjustedOptions.displayWidth
-  container.style.height = adjustedOptions.displayHeight
-
   // Создаём канвас
   const editorCanvas = document.createElement('canvas')
   editorCanvas.id = `${containerId}-canvas`
