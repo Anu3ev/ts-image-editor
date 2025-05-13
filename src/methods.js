@@ -697,12 +697,12 @@ export default ({ editorOptions }) => ({
    * @fires editor:image-fitted
    */
   fitObject({ object, type = editorOptions.scaleType, withoutSave } = {}) {
-    const image = object || this.canvas.getActiveObject()
+    const activeObject = object || this.canvas.getActiveObject()
 
-    if (!image) return
+    if (!activeObject) return
 
-    if (['activeselection', 'group'].includes(image.type)) {
-      const selectedItems = image.getObjects()
+    if (['activeselection'].includes(activeObject.type)) {
+      const selectedItems = activeObject.getObjects()
 
       this.canvas.discardActiveObject()
 
@@ -719,10 +719,14 @@ export default ({ editorOptions }) => ({
 
       this.canvas.setActiveObject(sel)
     } else {
-      const scaleFactor = calculateScaleFactor({ montageArea: this.montageArea, imageObject: image, scaleType: type })
+      const scaleFactor = calculateScaleFactor({
+        montageArea: this.montageArea,
+        imageObject: activeObject,
+        scaleType: type
+      })
 
-      image.scale(scaleFactor)
-      this.canvas.centerObject(image)
+      activeObject.scale(scaleFactor)
+      this.canvas.centerObject(activeObject)
     }
 
     this.canvas.renderAll()
@@ -1291,7 +1295,7 @@ export default ({ editorOptions }) => ({
     if (!activeObjects?.length) return
 
     activeObjects.forEach((obj) => {
-      if (obj.type === 'group') {
+      if (obj.type === 'group' && obj.format !== 'svg') {
         this.ungroup(obj)
         this.deleteSelectedObjects()
 
