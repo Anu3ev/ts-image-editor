@@ -1,4 +1,5 @@
-import Editor from './editor';
+// TODO: Разобраться с типами и с тем как здесь всё должно работать
+import { ImageEditor } from './editor';
 import defaults from './defaults';
 /**
  * Инициализирует редактор, создавая канвас внутри контейнера.
@@ -13,8 +14,6 @@ export default function initEditor(containerId, options = {}) {
     if (!container) {
         return Promise.reject(new Error(`Контейнер с ID "${containerId}" не найден.`));
     }
-    container.style.width = adjustedOptions.displayWidth;
-    container.style.height = adjustedOptions.displayHeight;
     // Создаём канвас
     const editorCanvas = document.createElement('canvas');
     editorCanvas.id = `${containerId}-canvas`;
@@ -23,7 +22,7 @@ export default function initEditor(containerId, options = {}) {
     adjustedOptions.editorContainer = container;
     return new Promise((resolve) => {
         adjustedOptions._onReadyCallback = resolve;
-        const editorInstance = new Editor(editorCanvas.id, adjustedOptions);
+        const editorInstance = new ImageEditor(editorCanvas.id, adjustedOptions);
         window[containerId] = editorInstance;
     });
 }

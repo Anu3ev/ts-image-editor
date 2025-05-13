@@ -1,6 +1,7 @@
 // API Docs: https://fabricjs.com/api/classes/canvas/
+import type { CanvasOptions } from 'fabric'
 
-export interface IEditorOptions {
+export interface IEditorOptions extends Partial<CanvasOptions> {
   montageAreaWidth: number
   montageAreaHeight: number
   canvasBackstoreWidth: string | number
@@ -11,10 +12,6 @@ export interface IEditorOptions {
   canvasWrapperHeight: string
   editorContainerWidth: string
   editorContainerHeight: string
-  preserveObjectStacking: boolean
-  controlsAboveOverlay: boolean
-  centeredScaling: boolean
-  centeredRotation: boolean
   scaleType: string
   showToolbar: boolean
   toolbar: {
@@ -46,19 +43,23 @@ export interface IEditorOptions {
 
   editorContainer?: HTMLElement
 
-  /**
-   *   return new Promise((resolve) => {
-    adjustedOptions._onReadyCallback = resolve
-
-    const editorInstance = new Editor(editorCanvas.id, adjustedOptions)
-    window[containerId] = editorInstance
-  })
-   */
-
   _onReadyCallback?:
 }
 
 export default {
+  // Cохраняют ли объекты свой текущий порядок (z-index) при выделении
+  preserveObjectStacking: true,
+  // Возможность взаимодействия с объектом за пределами монтажной области
+  controlsAboveOverlay: true,
+  // Зум по центру
+  centeredScaling: true,
+  // Поворот объекта по центру
+  centeredRotation: true,
+
+  /*
+  * Кастомные опции
+  */
+
   // Canvas Montage Area width and height
   montageAreaWidth: 512,
   montageAreaHeight: 512,
@@ -75,18 +76,6 @@ export default {
   // Container CSS width and height
   editorContainerWidth: 'fit-content',
   editorContainerHeight: '100%',
-  // Cохраняют ли объекты свой текущий порядок (z-index) при выделении
-  preserveObjectStacking: true,
-  // Возможность взаимодействия с объектом за пределами монтажной области
-  controlsAboveOverlay: true,
-  // Зум по центру
-  centeredScaling: true,
-  // Поворот объекта по центру
-  centeredRotation: true,
-
-  /*
-  * Кастомные опции
-  */
 
   // Дефолтный тип скейлинга для объектов (cotain/cover)
   scaleType: 'contain',
