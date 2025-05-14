@@ -1,3 +1,4 @@
+// TODO: Почистить консоль логи когда всё будет готово.
 import { create as diffPatchCreate } from 'jsondiffpatch'
 
 export default class HistoryManager {
