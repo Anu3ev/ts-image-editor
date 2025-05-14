@@ -216,12 +216,12 @@ export default (editorInstance) => {
 
   // Undo
   undoBtn.addEventListener('click', () => {
-    editorInstance.undo()
+    editorInstance.historyManager.undo()
   })
 
   // Redo
   redoBtn.addEventListener('click', () => {
-    editorInstance.redo()
+    editorInstance.historyManager.redo()
   })
 
   // Отображение разрешения канваса

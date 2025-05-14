@@ -82,7 +82,7 @@ export default ({ editorOptions }) => ({
     this.canvas.setViewportTransform([currentZoom, 0, 0, currentZoom, left, top])
 
     if (!withoutSave) {
-      this.saveState()
+      this.historyManager.saveState()
     }
 
     this.canvas?.fire('editor:resolution-width-changed', { width })
@@ -135,7 +135,7 @@ export default ({ editorOptions }) => ({
     this.centerMontageArea()
 
     if (!withoutSave) {
-      this.saveState()
+      this.historyManager.saveState()
     }
 
     this.canvas?.fire('editor:resolution-height-changed', { height })
@@ -363,26 +363,12 @@ export default ({ editorOptions }) => ({
   },
 
   /**
-   * Приостанавливает сохранение истории
-   */
-  suspendHistory() {
-    this._historySuspendCount += 1
-  },
-
-  /**
-   * Возобновляет сохранение истории
-   */
-  resumeHistory() {
-    this._historySuspendCount = Math.max(0, this._historySuspendCount - 1)
-  },
-
-  /**
    * Обновляет размеры и позицию overlay, выносит его на передний план
    */
   updateDisabledOverlay() {
     if (!this.disabledOverlay) return
 
-    this.suspendHistory()
+    this.historyManager.suspendHistory()
 
     // получаем в экранных координатах то, что отображает монтажную зону
     this.montageArea.setCoords()
@@ -392,7 +378,7 @@ export default ({ editorOptions }) => ({
     this.disabledOverlay.set({ left, top, width, height })
     this.canvas.discardActiveObject()
     this.bringToFront(this.disabledOverlay, { withoutSave: true })
-    this.resumeHistory()
+    this.historyManager.resumeHistory()
   },
 
   /**
@@ -430,7 +416,7 @@ export default ({ editorOptions }) => ({
     this.canvas.renderAll()
 
     if (!withoutSave) {
-      this.saveState()
+      this.historyManager.saveState()
     }
 
     this.canvas.fire('editor:object-locked', { object: activeObject })
@@ -471,7 +457,7 @@ export default ({ editorOptions }) => ({
     this.canvas.renderAll()
 
     if (!withoutSave) {
-      this.saveState()
+      this.historyManager.saveState()
     }
 
     this.canvas.fire('editor:object-unlocked', { object: activeObject })
@@ -486,7 +472,7 @@ export default ({ editorOptions }) => ({
   disable() {
     if (this.isDisabled) return
 
-    this.suspendHistory()
+    this.historyManager.suspendHistory()
     this.isDisabled = true
 
     // 1) Убираем все селекты, события мыши, скейл/драг–н–дроп
@@ -508,7 +494,7 @@ export default ({ editorOptions }) => ({
     this.updateDisabledOverlay()
 
     this.canvas.fire('editor:disabled')
-    this.resumeHistory()
+    this.historyManager.resumeHistory()
   },
 
   /**
@@ -517,7 +503,7 @@ export default ({ editorOptions }) => ({
   enable() {
     if (!this.isDisabled) return
 
-    this.suspendHistory()
+    this.historyManager.suspendHistory()
     this.isDisabled = false
 
     // 1) возвращаем интерактивность
@@ -537,7 +523,7 @@ export default ({ editorOptions }) => ({
     this.canvas.requestRenderAll()
 
     this.canvas.fire('editor:enabled')
-    this.resumeHistory()
+    this.historyManager.resumeHistory()
   },
 
   /**
@@ -559,7 +545,7 @@ export default ({ editorOptions }) => ({
   }) {
     if (!source) return
 
-    this.suspendHistory()
+    this.historyManager.suspendHistory()
 
     try {
       let dataUrl
@@ -629,10 +615,10 @@ export default ({ editorOptions }) => ({
       this.canvas.setActiveObject(img)
       this.canvas.renderAll()
 
-      this.resumeHistory()
+      this.historyManager.resumeHistory()
 
       if (!withoutSave) {
-        this.saveState()
+        this.historyManager.saveState()
       }
     } catch (error) {
       console.error('importImage. Ошибка импорта изображения: ', error)
@@ -641,7 +627,7 @@ export default ({ editorOptions }) => ({
         message: `Ошибка импорта изображения: ${error.message}`
       })
 
-      this.resumeHistory()
+      this.historyManager.resumeHistory()
     }
   },
 
@@ -717,7 +703,7 @@ export default ({ editorOptions }) => ({
     this.canvas.renderAll()
 
     if (!withoutSave) {
-      this.saveState()
+      this.historyManager.saveState()
     }
 
     this.canvas.fire('editor:image-fitted', { type })
@@ -754,7 +740,7 @@ export default ({ editorOptions }) => ({
 
     if (!currentObject || currentObject.locked) return
 
-    this.suspendHistory()
+    this.historyManager.suspendHistory()
 
     if (currentObject.type !== 'image' && currentObject.format !== 'svg') {
       currentObject.set({
@@ -804,10 +790,10 @@ export default ({ editorOptions }) => ({
     this.canvas.centerObject(currentObject)
     this.canvas.renderAll()
 
-    this.resumeHistory()
+    this.historyManager.resumeHistory()
 
     if (!withoutSave) {
-      this.saveState()
+      this.historyManager.saveState()
     }
 
     this.canvas.fire('editor:object-reset')
@@ -868,7 +854,7 @@ export default ({ editorOptions }) => ({
     this.canvas.renderAll()
 
     if (!withoutSave) {
-      this.saveState()
+      this.historyManager.saveState()
     }
 
     this.canvas.fire('editor:canvas-scaled', { width: newCanvasWidth, height: newCanvasHeight })
@@ -1202,7 +1188,7 @@ export default ({ editorOptions }) => ({
    * @fires editor:objects-grouped
    */
   group({ withoutSave } = {}) {
-    this.suspendHistory()
+    this.historyManager.suspendHistory()
     const activeObject = this.canvas.getActiveObject()
     if (!activeObject) return
 
@@ -1221,10 +1207,10 @@ export default ({ editorOptions }) => ({
     this.canvas.setActiveObject(group)
     this.canvas.renderAll()
 
-    this.resumeHistory()
+    this.historyManager.resumeHistory()
 
     if (!withoutSave) {
-      this.saveState()
+      this.historyManager.saveState()
     }
 
     this.canvas.fire('editor:objects-grouped')
@@ -1236,7 +1222,7 @@ export default ({ editorOptions }) => ({
    * @fires editor:objects-ungrouped
    */
   ungroup({ object, withoutSave } = {}) {
-    this.suspendHistory()
+    this.historyManager.suspendHistory()
 
     const group = object || this.canvas.getActiveObject()
 
@@ -1256,10 +1242,10 @@ export default ({ editorOptions }) => ({
     this.canvas.setActiveObject(sel)
     this.canvas.renderAll()
 
-    this.resumeHistory()
+    this.historyManager.resumeHistory()
 
     if (!withoutSave) {
-      this.saveState()
+      this.historyManager.saveState()
     }
 
     this.canvas.fire('editor:objects-ungrouped')
@@ -1273,7 +1259,7 @@ export default ({ editorOptions }) => ({
    * @fires editor:object-deleted
    */
   deleteSelectedObjects({ objects, withoutSave } = {}) {
-    this.suspendHistory()
+    this.historyManager.suspendHistory()
 
     const activeObjects = objects || this.canvas.getActiveObjects()
 
@@ -1292,198 +1278,13 @@ export default ({ editorOptions }) => ({
 
     this.canvas.discardActiveObject()
     this.canvas.renderAll()
-    this.resumeHistory()
+    this.historyManager.resumeHistory()
 
     if (!withoutSave) {
-      this.saveState()
+      this.historyManager.saveState()
     }
 
     this.canvas.fire('editor:objects-deleted')
-  },
-
-  /**
-   * Получаем полное состояние, применяя все диффы к базовому состоянию.
-   */
-  getFullState() {
-    const { baseState, currentIndex, patches } = this.history
-
-    // Глубокая копия базового состояния
-    let state = JSON.parse(JSON.stringify(baseState))
-    // Применяем все диффы до текущего индекса
-    for (let i = 0; i < currentIndex; i += 1) {
-      state = diffPatcher.patch(state, patches[i])
-    }
-
-    console.log('getFullState state', state)
-    return state
-  },
-
-  /**
-   * Сохраняем текущее состояние в виде диффа от последнего сохранённого полного состояния.
-   */
-  saveState() {
-    console.log('saveState')
-    if (this.isLoading) return
-
-    console.time('saveState')
-
-    // Получаем текущее состояние канваса как объект
-    const currentStateObj = this.canvas.toDatalessObject([
-      'selectable', 'evented', 'id', 'format', 'width', 'height', 'locked'
-    ])
-
-    console.timeEnd('saveState')
-
-    // Если базовое состояние ещё не установлено, сохраняем полное состояние как базу
-    if (!this.history.baseState) {
-      this.history.baseState = currentStateObj
-      this.history.patches = []
-      this.history.currentIndex = 0
-      console.log('Базовое состояние сохранено.')
-      return
-    }
-
-    // Вычисляем diff между последним сохранённым полным состоянием и текущим состоянием.
-    // Последнее сохранённое полное состояние – это результат getFullState()
-    const prevState = this.getFullState()
-    const diff = diffPatcher.diff(prevState, currentStateObj)
-
-    // Если изменений нет, не сохраняем новый шаг
-    if (!diff) {
-      console.log('Нет изменений для сохранения.')
-      return
-    }
-
-    console.log('baseState', this.history.baseState)
-
-    // Если мы уже сделали undo и сейчас добавляем новое состояние,
-    // удаляем «редо»-ветку
-    if (this.history.currentIndex < this.history.patches.length) {
-      this.history.patches.splice(this.history.currentIndex)
-    }
-
-    console.log('diff', diff)
-
-    // Сохраняем дифф
-    this.history.patches.push(diff)
-    this.history.currentIndex += 1
-
-    // Если история стала слишком длинной, сбрасываем её: делаем новое базовое состояние
-    if (this.history.patches.length > this.history.maxHistoryLength) {
-      // Обновляем базовое состояние, применяя самый старый дифф
-      // Можно также обновить базу, применив все диффы, но здесь мы делаем сдвиг на один шаг
-      this.history.baseState = diffPatcher.patch(this.history.baseState, this.history.patches[0])
-      this.history.patches.shift() // Удаляем первый дифф
-      this.history.currentIndex -= 1 // Корректируем индекс
-    }
-
-    console.log('Состояние сохранено. Текущий индекс истории:', this.history.currentIndex)
-  },
-
-  /**
-   * Функция загрузки состояния в канвас.
-   * Здесь мы принимаем полное состояние (JSON-строку) и загружаем его.
-   * @param {String} fullState - полное состояние канваса в виде JSON-строки
-   * @fires editor:state-loaded
-   */
-  async loadStateFromFullState(fullState) {
-    if (!fullState) return
-    console.log('loadStateFromFullState fullState', fullState)
-
-    await this.canvas.loadFromJSON(fullState)
-
-    const loadedMontage = this.canvas.getObjects().find((obj) => obj.id === 'montage-area')
-    if (loadedMontage) {
-      this.montageArea = loadedMontage
-    }
-
-    const loadedDisabledOverlay = this.canvas.getObjects().find((obj) => obj.id === 'disabled-overlay')
-
-    if (loadedDisabledOverlay) {
-      this.disabledOverlay = loadedDisabledOverlay
-      this.disabledOverlay.visible = false
-    }
-
-    this.canvas.renderAll()
-
-    this.canvas.fire('editor:history-state-loaded')
-  },
-
-  /**
-   * Undo – отмена последнего действия, восстанавливая состояние по накопленным диффам.
-   * @fires editor:undo
-   */
-  async undo() {
-    if (this.isLoading) return
-
-    const { currentIndex } = this.history
-
-    if (currentIndex <= 0) {
-      console.log('Нет предыдущих состояний для отмены.')
-      return
-    }
-
-    this.isLoading = true
-    this.suspendHistory()
-
-    try {
-      this.history.currentIndex -= 1
-      const fullState = this.getFullState()
-      console.log('image top', fullState.objects[1]?.top)
-      console.log('image left', fullState.objects[1]?.left)
-
-      await this.loadStateFromFullState(fullState)
-
-      console.log('Undo выполнен. Текущий индекс истории:', this.history.currentIndex)
-
-      this.canvas.fire('editor:undo')
-    } catch (error) {
-      console.error('undo. Ошибка отмены действия: ', error)
-
-      this.canvas.fire('editor:error', {
-        message: `Ошибка отмены действия: ${error.message}`
-      })
-    } finally {
-      this.isLoading = false
-      this.resumeHistory()
-    }
-  },
-
-  /**
-   * Redo – повтор ранее отменённого действия.
-   * @fires editor:redo
-   */
-  async redo() {
-    if (this.isLoading) return
-
-    const { currentIndex, patches } = this.history
-
-    if (currentIndex >= patches.length) {
-      console.log('Нет состояний для повтора.')
-      return
-    }
-
-    this.isLoading = true
-    this.suspendHistory()
-
-    try {
-      this.history.currentIndex += 1
-      const fullState = this.getFullState()
-      console.log('fullState', fullState)
-      await this.loadStateFromFullState(fullState)
-      console.log('Redo выполнен. Текущий индекс истории:', this.history.currentIndex)
-
-      this.canvas.fire('editor:redo')
-    } catch (error) {
-      console.error('redo. Ошибка повтора действия: ', error)
-
-      this.canvas.fire('editor:error', {
-        message: `Ошибка повтора действия: ${error.message}`
-      })
-    } finally {
-      this.isLoading = false
-      this.resumeHistory()
-    }
   },
 
   // Дебаунс для снижения частоты сохранения состояния
@@ -1504,7 +1305,7 @@ export default ({ editorOptions }) => ({
    * @fires editor:cleared
    */
   clearCanvas() {
-    this.suspendHistory()
+    this.historyManager.suspendHistory()
     // Сохраняем ссылку на монтажную область
     const { montageArea } = this
 
@@ -1515,9 +1316,9 @@ export default ({ editorOptions }) => ({
     this.canvas.add(montageArea)
 
     this.canvas.renderAll()
-    this.resumeHistory()
+    this.historyManager.resumeHistory()
 
-    this.saveState()
+    this.historyManager.saveState()
 
     this.canvas?.fire('editor:cleared')
   },
@@ -1740,7 +1541,7 @@ export default ({ editorOptions }) => ({
     this.resetObjects()
 
     if (!withoutSave) {
-      this.saveState()
+      this.historyManager.saveState()
     }
 
     this.canvas.fire('editor:default-scale-set')
@@ -1754,7 +1555,7 @@ export default ({ editorOptions }) => ({
    * @fires editor:object-bring-to-front
    */
   bringToFront(object, { withoutSave } = {}) {
-    this.suspendHistory()
+    this.historyManager.suspendHistory()
 
     const activeObject = object || this.canvas.getActiveObject()
 
@@ -1769,10 +1570,10 @@ export default ({ editorOptions }) => ({
     }
 
     this.canvas.renderAll()
-    this.resumeHistory()
+    this.historyManager.resumeHistory()
 
     if (!withoutSave) {
-      this.saveState()
+      this.historyManager.saveState()
     }
 
     this.canvas.fire('editor:object-bring-to-front')
@@ -1786,7 +1587,7 @@ export default ({ editorOptions }) => ({
    * @fires editor:object-bring-forward
    */
   bringForward(object, { withoutSave } = {}) {
-    this.suspendHistory()
+    this.historyManager.suspendHistory()
 
     const activeObject = object || this.canvas.getActiveObject()
 
@@ -1820,10 +1621,10 @@ export default ({ editorOptions }) => ({
     }
 
     this.canvas.renderAll()
-    this.resumeHistory()
+    this.historyManager.resumeHistory()
 
     if (!withoutSave) {
-      this.saveState()
+      this.historyManager.saveState()
     }
 
     this.canvas.fire('editor:object-bring-forward')
@@ -1837,7 +1638,7 @@ export default ({ editorOptions }) => ({
  * @fires editor:object-send-to-back
  */
   sendToBack(object, { withoutSave } = {}) {
-    this.suspendHistory()
+    this.historyManager.suspendHistory()
 
     const activeObject = object || this.canvas.getActiveObject()
 
@@ -1859,10 +1660,10 @@ export default ({ editorOptions }) => ({
     this.canvas.sendObjectToBack(this.disabledOverlay)
 
     this.canvas.renderAll()
-    this.resumeHistory()
+    this.historyManager.resumeHistory()
 
     if (!withoutSave) {
-      this.saveState()
+      this.historyManager.saveState()
     }
 
     this.canvas.fire('editor:object-send-to-back')
@@ -1875,7 +1676,7 @@ export default ({ editorOptions }) => ({
   * @param {Boolean} options.withoutSave - Не сохранять состояние
   */
   sendBackwards(object, { withoutSave } = {}) {
-    this.suspendHistory()
+    this.historyManager.suspendHistory()
 
     const activeObject = object || this.canvas.getActiveObject()
 
@@ -1902,10 +1703,10 @@ export default ({ editorOptions }) => ({
     this.canvas.sendObjectToBack(this.disabledOverlay)
 
     this.canvas.renderAll()
-    this.resumeHistory()
+    this.historyManager.resumeHistory()
 
     if (!withoutSave) {
-      this.saveState()
+      this.historyManager.saveState()
     }
 
     this.canvas.fire('editor:object-send-backwards')
@@ -1928,7 +1729,7 @@ export default ({ editorOptions }) => ({
     this.canvas.renderAll()
 
     if (!withoutSave) {
-      this.saveState()
+      this.historyManager.saveState()
     }
 
     this.canvas.fire('editor:object-rotated', { angle: newAngle })
@@ -1947,7 +1748,7 @@ export default ({ editorOptions }) => ({
     this.canvas.renderAll()
 
     if (!withoutSave) {
-      this.saveState()
+      this.historyManager.saveState()
     }
 
     this.canvas.fire('editor:object-flipped-x')
@@ -1966,7 +1767,7 @@ export default ({ editorOptions }) => ({
     this.canvas.renderAll()
 
     if (!withoutSave) {
-      this.saveState()
+      this.historyManager.saveState()
     }
 
     this.canvas.fire('editor:object-flipped-y')
@@ -1992,7 +1793,7 @@ export default ({ editorOptions }) => ({
     this.canvas.renderAll()
 
     if (!withoutSave) {
-      this.saveState()
+      this.historyManager.saveState()
     }
 
     this.canvas.fire('editor:object-opacity-changed', opacity)
