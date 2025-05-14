@@ -1,6 +1,19 @@
 // API Docs: https://fabricjs.com/api/classes/canvas/
 
 export default {
+  // Cохраняют ли объекты свой текущий порядок (z-index) при выделении
+  preserveObjectStacking: true,
+  // Возможность взаимодействия с объектом за пределами монтажной области
+  controlsAboveOverlay: true,
+  // Зум по центру
+  centeredScaling: true,
+  // Поворот объекта по центру
+  centeredRotation: true,
+
+  /*
+  * Кастомные опции
+  */
+
   // Canvas Montage Area width and height
   montageAreaWidth: 512,
   montageAreaHeight: 512,
@@ -17,18 +30,6 @@ export default {
   // Container CSS width and height
   editorContainerWidth: 'fit-content',
   editorContainerHeight: '100%',
-  // Cохраняют ли объекты свой текущий порядок (z-index) при выделении
-  preserveObjectStacking: true,
-  // Возможность взаимодействия с объектом за пределами монтажной области
-  controlsAboveOverlay: true,
-  // Зум по центру
-  centeredScaling: true,
-  // Поворот объекта по центру
-  centeredRotation: true,
-
-  /*
-  * Кастомные опции
-  */
 
   // Дефолтный тип скейлинга для объектов (cotain/cover)
   scaleType: 'contain',
