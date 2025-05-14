@@ -43,8 +43,7 @@ export class ImageEditor {
 
     this.containerId = canvasId
     this.editorId = `${canvasId}-${nanoid()}`
-    this.isLoading = false
-    this.isDisable = false
+    this.isDisabled = false
     this.disabledOverlay = null
     this.clipboard = null
 
