@@ -1,4 +1,3 @@
-import { create as diffPatchCreate } from 'jsondiffpatch'
 import { Pattern } from 'fabric'
 
 /**
@@ -66,32 +65,3 @@ export function createMosaicPattern() {
     repeat: 'repeat'
   })
 }
-
-export const diffPatcher = diffPatchCreate({
-  objectHash(obj) {
-    return [
-      obj.id,
-      obj.format,
-      obj.locked,
-      obj.left,
-      obj.top,
-      obj.width,
-      obj.height,
-      obj.flipX,
-      obj.flipY,
-      obj.scaleX,
-      obj.scaleY,
-      obj.angle,
-      obj.opacity
-    ].join('-')
-  },
-
-  arrays: {
-    detectMove: true,
-    includeValueOnMove: false
-  },
-
-  textDiff: {
-    minLength: 60
-  }
-})
