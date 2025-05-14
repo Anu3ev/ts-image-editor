@@ -170,22 +170,22 @@ class Listeners {
    */
   handleObjectModifiedHistory() {
     if (this.editor.skipHistory) return
-    this.editor.saveState()
+    this.editor.historyManager.saveState()
   }
 
   handleObjectRotatingHistory() {
     if (this.editor.skipHistory) return
-    this.editor.saveState()
+    this.editor.historyManager.saveState()
   }
 
   handleObjectAddedHistory() {
-    if (this.editor.skipHistory || this.editor.isLoading) return
-    this.editor.saveState()
+    if (this.editor.skipHistory) return
+    this.editor.historyManager.saveState()
   }
 
   handleObjectRemovedHistory() {
-    if (this.editor.skipHistory || this.editor.isLoading) return
-    this.editor.saveState()
+    if (this.editor.skipHistory) return
+    this.editor.historyManager.saveState()
   }
 
   /**
@@ -289,11 +289,11 @@ class Listeners {
     if (code === 'KeyZ') {
       event.preventDefault()
       this.isUndoRedoKeyPressed = true
-      await this.editor.undo()
+      await this.editor.historyManager.undo()
     } else if (code === 'KeyY') {
       event.preventDefault()
       this.isUndoRedoKeyPressed = true
-      await this.editor.redo()
+      await this.editor.historyManager.redo()
     }
   }
 

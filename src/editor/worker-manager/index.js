@@ -11,6 +11,16 @@ export default class WorkerManager {
     this.worker.onmessage = this._handleMessage.bind(this)
   }
 
+  /**
+   * Обработчик сообщений от воркера
+   * @param {Object} data
+   * @param {String} data.action - название действия
+   * @param {String} data.requestId - уникальный идентификатор запроса
+   * @param {Boolean} data.success - успешность выполнения действия
+   * @param {Object} data.data - данные, которые вернул воркер
+   * @param {String} data.error - ошибка, если она произошла
+   * @returns {void}
+   */
   _handleMessage({ data }) {
     const { requestId, success, data: payload, error } = data
     const cb = this._callbacks.get(requestId)
@@ -41,6 +51,9 @@ export default class WorkerManager {
     })
   }
 
+  /**
+   * Завершает работу воркера
+   */
   terminate() {
     this.worker.terminate()
   }

@@ -6,6 +6,7 @@ import Listeners from './listeners'
 import WorkerManager from './worker-manager'
 import CustomizedControls from './customized-controls'
 import ToolbarManager from './ui/toolbar-manager'
+import HistoryManager from './history-manager'
 
 import {
   MIN_ZOOM,
@@ -48,17 +49,6 @@ export class ImageEditor {
     this.clipboard = null
 
     this._createdBlobUrls = []
-    this._historySuspendCount = 0
-    this.history = {
-      // Базовое состояние от которого будет строиться история
-      baseState: null,
-      // Массив диффов (каждый дифф – результат jsondiffpatch.diff(prevState, nextState))
-      patches: [],
-      // Текущая позиция в истории (0 означает базовое состояние)
-      currentIndex: 0,
-      // Максимальное количество сохранённых диффов
-      maxHistoryLength: 50
-    }
 
     this.defaultZoom = defaultScale
 
@@ -69,6 +59,7 @@ export class ImageEditor {
 
     this.canvas = new Canvas(canvasId, options)
 
+    this.historyManager = new HistoryManager(this, options.maxHistoryLength)
     this.toolbar = new ToolbarManager(this)
 
     // TODO: Рассмотреть возможность использования свойства excludeFromExport
@@ -157,7 +148,7 @@ export class ImageEditor {
       this.loadStateFromFullState(initialStateJSON)
     }
 
-    this.saveState()
+    this.historyManager.saveState()
 
     console.log('editor:ready')
     this.canvas.fire('editor:ready', this)
@@ -176,7 +167,7 @@ export class ImageEditor {
    * Создаёт overlay для блокировки монтажной области
    */
   _createDisabledOverlay() {
-    this.suspendHistory()
+    this.historyManager.suspendHistory()
 
     const { disabledOverlayColor } = this.options
 
@@ -203,7 +194,7 @@ export class ImageEditor {
     // рисуем его поверх всех
     this.canvas.add(this.disabledOverlay)
     this.canvas.renderAll()
-    this.resumeHistory()
+    this.historyManager.resumeHistory()
   }
 
   _initEditorWorker() {
