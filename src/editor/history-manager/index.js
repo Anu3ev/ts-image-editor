@@ -174,7 +174,7 @@ export default class HistoryManager {
    * @fires editor:undo
    */
   async undo() {
-    if (this.editor.skipHistory) return
+    if (this.skipHistory) return
 
     if (this.currentIndex <= 0) {
       console.log('Нет предыдущих состояний для отмены.')
@@ -205,7 +205,7 @@ export default class HistoryManager {
    * @fires editor:redo
    */
   async redo() {
-    if (this.editor.skipHistory) return
+    if (this.skipHistory) return
 
     if (this.currentIndex >= this.patches.length) {
       console.log('Нет состояний для повтора.')
