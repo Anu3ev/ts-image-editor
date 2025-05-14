@@ -33,7 +33,7 @@ import {
  *
  * @fires {object} editor:render-complete - событие, которое срабатывает после завершения рендеринга редактора
  */
-class ImageEditor {
+export class ImageEditor {
   constructor(canvasId, options = {}) {
     this.options = options
 
@@ -244,5 +244,3 @@ class ImageEditor {
     this._createdBlobUrls = []
   }
 }
-
-export default ImageEditor
