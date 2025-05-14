@@ -541,21 +541,6 @@ export default ({ editorOptions }) => ({
   },
 
   /**
-   * Универсальный метод отправки команды в воркер
-   * @param {String} action
-   * @param {Object} payload
-   * @param {Array} [transferables] - массив объектов, которые нужно передать в воркер
-   * @returns {Promise<any>}
-   */
-  postToWorker(action, payload, transferables = []) {
-    const requestId = `${action}:${Math.random().toString(36).slice(2)}`
-    return new Promise((resolve, reject) => {
-      this._callbacks.set(requestId, { resolve, reject })
-      this.worker.postMessage({ action, payload, requestId }, transferables)
-    })
-  },
-
-  /**
    * Импорт изображения
    * @param {Object} options
    * @param {File|string} [options.source] - URL изображения или объект File
@@ -676,7 +661,7 @@ export default ({ editorOptions }) => ({
       message
     })
 
-    const newDataURL = await this.postToWorker('resizeImage', {
+    const newDataURL = await this.workerManager.post('resizeImage', {
       dataURL,
       maxWidth: CANVAS_MAX_WIDTH,
       maxHeight: CANVAS_MAX_HEIGHT,
@@ -1024,7 +1009,7 @@ export default ({ editorOptions }) => ({
 
     // Создаём bitmap из blob, отправляем в воркер и получаем dataURL
     const bitmap = await createImageBitmap(blob)
-    const dataUrl = await this.postToWorker(
+    const dataUrl = await this.workerManager.post(
       'toDataURL',
       { format, quality: 1, bitmap },
       [bitmap]
@@ -1159,7 +1144,7 @@ export default ({ editorOptions }) => ({
 
     if (exportAsBase64) {
       const bitmap = await createImageBitmap(activeObject._element)
-      const dataUrl = await this.postToWorker(
+      const dataUrl = await this.workerManager.post(
         'toDataURL',
         {
           format,

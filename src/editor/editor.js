@@ -3,6 +3,7 @@ import { Canvas, Rect } from 'fabric'
 import { nanoid } from 'nanoid'
 import methods from './methods'
 import Listeners from './listeners'
+import WorkerManager from './worker-manager'
 import CustomizedControls from './customized-controls'
 import ToolbarManager from './ui/toolbar-manager'
 
@@ -129,8 +130,8 @@ export class ImageEditor {
 
     this.listeners = new Listeners({ editor: this, options: this.options })
 
-    this.initEditorWorker()
-    this.createDisabledOverlay()
+    this._initEditorWorker()
+    this._createDisabledOverlay()
 
     this.setEditorContainerWidth(editorContainerWidth)
     this.setEditorContainerHeight(editorContainerHeight)
@@ -174,7 +175,7 @@ export class ImageEditor {
   /**
    * Создаёт overlay для блокировки монтажной области
    */
-  createDisabledOverlay() {
+  _createDisabledOverlay() {
     this.suspendHistory()
 
     const { disabledOverlayColor } = this.options
@@ -205,29 +206,9 @@ export class ImageEditor {
     this.resumeHistory()
   }
 
-  initEditorWorker() {
-    this.worker = new Worker(
-      new URL('./worker.js', import.meta.url),
-      { type: 'module' }
-    )
-
-    // будем хранить колбэки по requestId
-    this._callbacks = new Map()
-
-    // общий onmessage для всех
-    this.worker.onmessage = ({ data }) => {
-      const { requestId, success, data: payload, error } = data
-      const cb = this._callbacks.get(requestId)
-      if (!cb) return
-
-      if (success) {
-        cb.resolve(payload)
-      } else {
-        cb.reject(new Error(error))
-      }
-
-      this._callbacks.delete(requestId)
-    }
+  _initEditorWorker() {
+    this.workerManager = new WorkerManager()
+    this.worker = this.workerManager.worker
   }
 
   /**
