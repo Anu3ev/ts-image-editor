@@ -169,22 +169,22 @@ class Listeners {
    * Срабатывают при изменении объектов (перемещение, изменение размера и т.д.).
    */
   handleObjectModifiedHistory() {
-    if (this.editor.skipHistory) return
+    if (this.editor.historyManager.skipHistory) return
     this.editor.historyManager.saveState()
   }
 
   handleObjectRotatingHistory() {
-    if (this.editor.skipHistory) return
+    if (this.editor.historyManager.skipHistory) return
     this.editor.historyManager.saveState()
   }
 
   handleObjectAddedHistory() {
-    if (this.editor.skipHistory) return
+    if (this.editor.historyManager.skipHistory) return
     this.editor.historyManager.saveState()
   }
 
   handleObjectRemovedHistory() {
-    if (this.editor.skipHistory) return
+    if (this.editor.historyManager.skipHistory) return
     this.editor.historyManager.saveState()
   }
 
