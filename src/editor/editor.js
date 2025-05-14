@@ -159,10 +159,6 @@ export class ImageEditor {
     }
   }
 
-  get skipHistory() {
-    return this._historySuspendCount > 0
-  }
-
   /**
    * Создаёт overlay для блокировки монтажной области
    */
