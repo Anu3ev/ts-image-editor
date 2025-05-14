@@ -23,8 +23,7 @@ import {
 } from './constants'
 
 import {
-  calculateScaleFactor,
-  diffPatcher
+  calculateScaleFactor
 } from './helpers'
 
 /**

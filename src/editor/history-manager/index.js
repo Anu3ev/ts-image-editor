@@ -1,4 +1,5 @@
 // TODO: Почистить консоль логи когда всё будет готово.
+// TODO: Сделать динамческий импорт jsondiffpatch, чтобы не грузить его в основной бандл
 import { create as diffPatchCreate } from 'jsondiffpatch'
 
 export default class HistoryManager {
