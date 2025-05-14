@@ -1,4 +1,4 @@
-import Editor from './editor'
+import { ImageEditor } from './editor'
 import defaults from './defaults'
 
 /**
@@ -27,7 +27,7 @@ export default function initEditor(containerId, options = {}) {
   return new Promise((resolve) => {
     adjustedOptions._onReadyCallback = resolve
 
-    const editorInstance = new Editor(editorCanvas.id, adjustedOptions)
+    const editorInstance = new ImageEditor(editorCanvas.id, adjustedOptions)
     window[containerId] = editorInstance
   })
 }
