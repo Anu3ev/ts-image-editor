@@ -664,14 +664,15 @@ export default ({ editorOptions }) => ({
    * 'contain' - скейлит картинку, чтобы она вмещалась
    * 'cover' - скейлит картинку, чтобы она вписалась в размер канвас
    * @param {Boolean} [options.withoutSave] - Не сохранять состояние
+   * @param {Boolean} [options.fitAsOneObject] - Масштабировать все объекты в активной группе как один объект
    * @fires editor:image-fitted
    */
-  fitObject({ object, type = editorOptions.scaleType, withoutSave } = {}) {
+  fitObject({ object, type = editorOptions.scaleType, withoutSave, fitAsOneObject } = {}) {
     const activeObject = object || this.canvas.getActiveObject()
 
     if (!activeObject) return
 
-    if (['activeselection'].includes(activeObject.type)) {
+    if (['activeselection'].includes(activeObject.type) && !fitAsOneObject) {
       const selectedItems = activeObject.getObjects()
 
       this.canvas.discardActiveObject()
@@ -715,7 +716,7 @@ export default ({ editorOptions }) => ({
   getObjects() {
     const canvasObjects = this.canvas.getObjects()
 
-    return canvasObjects.filter((obj) => obj.id !== this.montageArea.id) ?? []
+    return canvasObjects.filter((obj) => obj.id !== this.montageArea.id && obj.id !== this.disabledOverlay.id)
   },
 
   /**
