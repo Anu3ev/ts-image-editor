@@ -27,16 +27,16 @@ function getCurrentObjectData(editorInstance) {
 function importImage(e, editorInstance) {
   const { files } = e.target
 
-  for (let i = 0; i < files.length; i++) {
+  for (let i = 0; i < files.length; i += 1) {
     (function(file) {
-      editorInstance.importImage({ source: file, contentType: file.type })
+      editorInstance.imageManager.importImage({ source: file, contentType: file.type })
     }(files[i]))
   }
 }
 
 // Сохранение результата
 async function saveResult(editorInstance) {
-  const { image } = await editorInstance.exportCanvasAsImageFile({ contentType: 'image/svg+xml' })
+  const { image } = await editorInstance.imageManager.exportCanvasAsImageFile({ contentType: 'image/svg+xml' })
 
   const url = URL.createObjectURL(image)
   const link = document.createElement('a')
