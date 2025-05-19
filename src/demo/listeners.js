@@ -72,22 +72,22 @@ import {
 export default (editorInstance) => {
   // Scale canvas
   scaleCanvasToImageBtn.addEventListener('click', () => {
-    editorInstance.scaleMontageAreaToImage()
+    editorInstance.canvasManager.scaleMontageAreaToImage()
   })
 
   // Сброс параметров объекта до дефолтных
   resetFit.addEventListener('click', () => {
-    editorInstance.resetObject()
+    editorInstance.transformManager.resetObject()
   })
 
   // Image fit contain
   imageFitContainBtn.addEventListener('click', () => {
-    editorInstance.fitObject({ type: 'contain' })
+    editorInstance.transformManager.fitObject({ type: 'contain' })
   })
 
   // Image fit cover
   imageFitCoverBtn.addEventListener('click', () => {
-    editorInstance.fitObject({ type: 'cover' })
+    editorInstance.transformManager.fitObject({ type: 'cover' })
   })
 
   // Bring to front
@@ -112,22 +112,22 @@ export default (editorInstance) => {
 
   // Сброс масштаба
   resetZoomBtn.addEventListener('click', () => {
-    editorInstance.resetZoom()
+    editorInstance.transformManager.resetZoom()
   })
 
   // Установка дефолтного масштаба для всего
   setDefaultScaleBtn.addEventListener('click', () => {
-    editorInstance.setDefaultScale()
+    editorInstance.canvasManager.setDefaultScale()
   })
 
   // Увеличение масштаба
   zoomInBtn.addEventListener('click', () => {
-    editorInstance.zoom(0.1)
+    editorInstance.transformManager.zoom(0.1)
   })
 
   // Уменьшение масштаба
   zoomOutBtn.addEventListener('click', () => {
-    editorInstance.zoom(-0.1)
+    editorInstance.transformManager.zoom(-0.1)
   })
 
   // Группировка объектов
@@ -152,7 +152,7 @@ export default (editorInstance) => {
 
   // Очистка холста
   clearBtn.addEventListener('click', () => {
-    editorInstance.clearCanvas()
+    editorInstance.canvasManager.clearCanvas()
   })
 
   // Копирование объекта
@@ -167,22 +167,22 @@ export default (editorInstance) => {
 
   // Поворот объекта на 90 градусов
   rotateRightBtn.addEventListener('click', () => {
-    editorInstance.rotate(90)
+    editorInstance.transformManager.rotate(90)
   })
 
   // Поворот объекта на -90 градусов
   rotateLeftBtn.addEventListener('click', () => {
-    editorInstance.rotate(-90)
+    editorInstance.transformManager.rotate(-90)
   })
 
   // Flip по горизонтали
   flipXBtn.addEventListener('click', () => {
-    editorInstance.flipX()
+    editorInstance.transformManager.flipX()
   })
 
   // Flip по вертикали
   flipYBtn.addEventListener('click', () => {
-    editorInstance.flipY()
+    editorInstance.transformManager.flipY()
   })
 
   chooseImageBtn.addEventListener('click', () => {
