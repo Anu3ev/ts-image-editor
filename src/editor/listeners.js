@@ -206,12 +206,14 @@ class Listeners {
     const { width, height } = this.editor.montageArea
 
     // Заново адаптируем канвас к контейнеру
-    this.editor.setResolutionWidth(width, { adaptCanvasToContainer: true, withoutSave: true })
-    this.editor.setResolutionHeight(height, { adaptCanvasToContainer: true, withoutSave: true })
+    this.editor.canvasManager.setResolutionWidth(width, { adaptCanvasToContainer: true, withoutSave: true })
+    this.editor.canvasManager.setResolutionHeight(height, { adaptCanvasToContainer: true, withoutSave: true })
 
-    // Центрируем и масштабируем монтажную область
-    this.editor.centerMontageArea()
-    this.editor.resetObjects()
+    // Центрируем монтажную область
+    this.editor.canvasManager.centerMontageArea()
+
+    // Сбрасываем все трансформации объектов
+    this.editor.transformManager.resetObjects()
   }
 
   /**
@@ -248,7 +250,7 @@ class Listeners {
 
       const reader = new FileReader()
       reader.onload = (f) => {
-        this.editor.importImage({ url: f.target.result })
+        this.editor.imageManager.importImage({ url: f.target.result })
       }
 
       reader.readAsDataURL(blob)
@@ -264,7 +266,7 @@ class Listeners {
       const img = doc.querySelector('img')
 
       if (img?.src) {
-        this.editor.importImage({ url: img.src })
+        this.editor.imageManager.importImage({ url: img.src })
         return
       }
     }
@@ -385,7 +387,7 @@ class Listeners {
     const conversionFactor = 0.001
     const scaleAdjustment = -event.deltaY * conversionFactor
 
-    this.editor.zoom(scaleAdjustment)
+    this.editor.transformManager.zoom(scaleAdjustment)
 
     event.preventDefault()
     event.stopPropagation()
@@ -408,7 +410,7 @@ class Listeners {
    */
   handleResetObjectFit({ target }) {
     if (!target) return
-    this.editor.resetObject(target)
+    this.editor.transformManager.resetObject(target)
   }
 
   /**

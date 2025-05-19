@@ -7,6 +7,9 @@ import WorkerManager from './worker-manager'
 import CustomizedControls from './customized-controls'
 import ToolbarManager from './ui/toolbar-manager'
 import HistoryManager from './history-manager'
+import ImageManager from './image-manager'
+import CanvasManager from './canvas-manager'
+import TransformManager from './transform-manager'
 
 import {
   MIN_ZOOM,
@@ -60,6 +63,7 @@ export class ImageEditor {
 
     this.historyManager = new HistoryManager(this, options.maxHistoryLength)
     this.toolbar = new ToolbarManager(this)
+    this._initEditorWorker()
 
     // TODO: Рассмотреть возможность использования свойства excludeFromExport
     this.montageArea = new Rect({
@@ -75,6 +79,21 @@ export class ImageEditor {
       originY: 'center',
       objectCaching: false,
       noScaleCache: true
+    })
+
+    this.transformManager = new TransformManager({
+      editor: this,
+      editorOptions: options
+    })
+
+    this.canvasManager = new CanvasManager({
+      editor: this,
+      editorOptions: options
+    })
+
+    this.imageManager = new ImageManager({
+      editor: this,
+      editorOptions: options
     })
 
     this.init()
@@ -120,15 +139,14 @@ export class ImageEditor {
 
     this.listeners = new Listeners({ editor: this, options: this.options })
 
-    this._initEditorWorker()
     this._createDisabledOverlay()
 
-    this.setEditorContainerWidth(editorContainerWidth)
-    this.setEditorContainerHeight(editorContainerHeight)
-    this.setCanvasWrapperWidth(canvasWrapperWidth)
-    this.setCanvasWrapperHeight(canvasWrapperHeight)
-    this.setCanvasCSSWidth(canvasCSSWidth)
-    this.setCanvasCSSHeight(canvasCSSHeight)
+    this.canvasManager.setEditorContainerWidth(editorContainerWidth)
+    this.canvasManager.setEditorContainerHeight(editorContainerHeight)
+    this.canvasManager.setCanvasWrapperWidth(canvasWrapperWidth)
+    this.canvasManager.setCanvasWrapperHeight(canvasWrapperHeight)
+    this.canvasManager.setCanvasCSSWidth(canvasCSSWidth)
+    this.canvasManager.setCanvasCSSHeight(canvasCSSHeight)
 
     if (initialImage?.source) {
       const {
@@ -138,9 +156,9 @@ export class ImageEditor {
         contentType
       } = initialImage
 
-      await this.importImage({ source, scale, withoutSave, contentType })
+      await this.imageManager.importImage({ source, scale, withoutSave, contentType })
     } else {
-      this.setDefaultScale({ withoutSave: true })
+      this.canvasManager.setDefaultScale({ withoutSave: true })
     }
 
     if (initialStateJSON) {
