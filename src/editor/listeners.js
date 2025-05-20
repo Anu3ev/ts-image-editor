@@ -119,7 +119,7 @@ class Listeners {
     this.canvas.on('object:added', this.handleObjectAddedHistoryBound)
     this.canvas.on('object:removed', this.handleObjectRemovedHistoryBound)
 
-    // Инициализация событий для disabledOverlay
+    // Инициализация событий для overlayMask
     this.canvas.on('object:added', this.handleOverlayUpdateBound)
     this.canvas.on('selection:created', this.handleOverlayUpdateBound)
 
@@ -189,11 +189,14 @@ class Listeners {
   }
 
   /**
-   * Обновление disabledOverlay при добавлении объектов или выделении.
+   * Обновление overlayMask при добавлении объектов или выделении.
    */
   handleOverlayUpdate() {
-    if (!this.editor.isDisabled || !this.editor.disabledOverlay) return
-    this.editor.updateDisabledOverlay()
+    const { interactionBlocker } = this.editor
+
+    if (!interactionBlocker.isBlocked || !interactionBlocker.overlayMask) return
+
+    this.editor.interactionBlocker.refresh()
   }
 
   // --- Глобальные DOM-обработчики ---

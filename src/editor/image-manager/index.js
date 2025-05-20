@@ -10,15 +10,14 @@ import {
 export default class ImageManager {
   /**
    * @param {object} options
-   * @param {object} options.editor - экземпляр редактора с доступом к canvas
-   * @param {object} options.editorOptions - опции редактора
+   * @param {ImageEditor} options.editor - экземпляр редактора с доступом к canvas
    */
   constructor({
-    editor,
-    editorOptions
+    editor
   }) {
     this.editor = editor
-    this.editorOptions = editorOptions
+    this.options = editor.options
+    this._createdBlobUrls = []
   }
 
   /**
@@ -34,13 +33,13 @@ export default class ImageManager {
    */
   async importImage({
     source,
-    scale = `image-${this.editorOptions.scaleType}`,
+    scale = `image-${this.options.scaleType}`,
     withoutSave = false,
     contentType = 'image/png'
   }) {
     if (!source) return
 
-    const { canvas, montageArea, transformManager, historyManager, _createdBlobUrls } = this.editor
+    const { canvas, montageArea, transformManager, historyManager } = this.editor
 
     historyManager.suspendHistory()
 
@@ -60,7 +59,7 @@ export default class ImageManager {
       }
 
       // Создаем blobURL и добавляем его в массив для последующего удаления (destroy)
-      _createdBlobUrls.push(dataUrl)
+      this._createdBlobUrls.push(dataUrl)
 
       const format = ImageManager.getFormatFromContentType(contentType)
 
@@ -82,7 +81,7 @@ export default class ImageManager {
       if (imageHeight > CANVAS_MAX_HEIGHT || imageWidth > CANVAS_MAX_WIDTH) {
         const resizedBlob = await this.resizeImageToBoundaries(img._element.src, 'max')
         const resizedBlobURL = URL.createObjectURL(resizedBlob)
-        _createdBlobUrls.push(resizedBlobURL)
+        this._createdBlobUrls.push(resizedBlobURL)
 
         // Создаем новый объект FabricImage из уменьшенного dataURL
         img = await FabricImage.fromURL(resizedBlobURL, { crossOrigin: 'anonymous' })
@@ -438,6 +437,15 @@ export default class ImageManager {
 
     canvas.fire('editor:object-exported', data)
     return data
+  }
+
+  /**
+   * Удаляет все созданные blobURL
+   * @returns {void}
+   */
+  revokeBlobUrls() {
+    this._createdBlobUrls.forEach(URL.revokeObjectURL)
+    this._createdBlobUrls = []
   }
 
   /**

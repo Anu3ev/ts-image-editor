@@ -8,10 +8,6 @@ import {
 
 import { nanoid } from 'nanoid'
 
-import {
-  calculateScaleFactor
-} from './helpers'
-
 /**
  * Методы для работы с канвасом
  * @param {Object} params
@@ -21,25 +17,6 @@ import {
  * @returns {Object} методы для работы с канвасом
  */
 export default ({ editorOptions }) => ({
-  /**
-   * Обновляет размеры и позицию overlay, выносит его на передний план
-   */
-  updateDisabledOverlay() {
-    if (!this.disabledOverlay) return
-
-    this.historyManager.suspendHistory()
-
-    // получаем в экранных координатах то, что отображает монтажную зону
-    this.montageArea.setCoords()
-    const { left, top, width, height } = this.montageArea.getBoundingRect()
-
-    // обновляем размеры и позицию overlay
-    this.disabledOverlay.set({ left, top, width, height })
-    this.canvas.discardActiveObject()
-    this.bringToFront(this.disabledOverlay, { withoutSave: true })
-    this.historyManager.resumeHistory()
-  },
-
   /**
    * Блокирует объект (или группу объектов) на канвасе
    * @param {Object} options
@@ -123,76 +100,15 @@ export default ({ editorOptions }) => ({
   },
 
   /**
-   * Выключает редактор:
-   * 1) убирает все селекты, события мыши, скейл/драг–н–дроп
-   * 2) делает все объекты не‑evented и не‑selectable
-   * 3) делает видимым disabledOverlay поверх всех объектов в монтажной области
-   */
-  disable() {
-    if (this.isDisabled) return
-
-    this.historyManager.suspendHistory()
-    this.isDisabled = true
-
-    // 1) Убираем все селекты, события мыши, скейл/драг–н–дроп
-    this.canvas.discardActiveObject()
-    this.canvas.selection = false
-    this.canvas.skipTargetFind = true
-
-    // 2) Делаем все объекты не‑evented и не‑selectable
-    this.getObjects().forEach((obj) => {
-      obj.evented = false
-      obj.selectable = false
-    })
-
-    // 3) (опционально) блокируем сами canvas‑элементы в DOM
-    this.canvas.upperCanvasEl.style.pointerEvents = 'none'
-    this.canvas.lowerCanvasEl.style.pointerEvents = 'none'
-
-    this.disabledOverlay.visible = true
-    this.updateDisabledOverlay()
-
-    this.canvas.fire('editor:disabled')
-    this.historyManager.resumeHistory()
-  },
-
-  /**
-   * Включает редактор
-   */
-  enable() {
-    if (!this.isDisabled) return
-
-    this.historyManager.suspendHistory()
-    this.isDisabled = false
-
-    // 1) возвращаем интерактивность
-    this.canvas.selection = true
-    this.canvas.skipTargetFind = false
-
-    // 2) возвращаем селекты & ивенты
-    this.getObjects().forEach((obj) => {
-      obj.evented = true
-      obj.selectable = true
-    })
-
-    // 3) разблокируем DOM
-    this.canvas.upperCanvasEl.style.pointerEvents = ''
-    this.canvas.lowerCanvasEl.style.pointerEvents = ''
-    this.disabledOverlay.visible = false
-    this.canvas.requestRenderAll()
-
-    this.canvas.fire('editor:enabled')
-    this.historyManager.resumeHistory()
-  },
-
-  /**
    * Получение всех объектов внутри монтажной области редактора
    * @returns {Array} массив объектов
    */
   getObjects() {
     const canvasObjects = this.canvas.getObjects()
 
-    return canvasObjects.filter((obj) => obj.id !== this.montageArea.id && obj.id !== this.disabledOverlay.id)
+    const { montageArea, interactionBlocker: { overlayMask } } = this
+
+    return canvasObjects.filter((obj) => obj.id !== montageArea.id && obj.id !== overlayMask.id)
   },
 
   /**
@@ -522,7 +438,7 @@ export default ({ editorOptions }) => ({
 
     // Служебные элементы отправляем вниз
     this.canvas.sendObjectToBack(this.montageArea)
-    this.canvas.sendObjectToBack(this.disabledOverlay)
+    this.canvas.sendObjectToBack(this.interactionBlocker.overlayMask)
 
     this.canvas.renderAll()
     this.historyManager.resumeHistory()
@@ -565,7 +481,7 @@ export default ({ editorOptions }) => ({
 
     // Служебные элементы отправляем вниз
     this.canvas.sendObjectToBack(this.montageArea)
-    this.canvas.sendObjectToBack(this.disabledOverlay)
+    this.canvas.sendObjectToBack(this.interactionBlocker.overlayMask)
 
     this.canvas.renderAll()
     this.historyManager.resumeHistory()
