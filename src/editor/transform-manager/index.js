@@ -10,7 +10,7 @@ import { calculateScaleFactor } from '../helpers'
 export default class TransformManager {
   /**
    * @param {object} options
-   * @param {object} options.editor - экземпляр редактора с доступом к canvas
+   * @param {ImageEditor} options.editor - экземпляр редактора с доступом к canvas
    */
   constructor({ editor }) {
     this.editor = editor
