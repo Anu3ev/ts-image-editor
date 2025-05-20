@@ -186,59 +186,6 @@ export default ({ editorOptions }) => ({
   },
 
   /**
-   * Масштабирование изображения
-   * @param {Object} options
-   * @param {fabric.Object} [options.object] - Объект с изображением, которое нужно масштабировать
-   * @param {String} [options.type] - Тип масштабирования
-   * 'contain' - скейлит картинку, чтобы она вмещалась
-   * 'cover' - скейлит картинку, чтобы она вписалась в размер канвас
-   * @param {Boolean} [options.withoutSave] - Не сохранять состояние
-   * @param {Boolean} [options.fitAsOneObject] - Масштабировать все объекты в активной группе как один объект
-   * @fires editor:image-fitted
-   */
-  fitObject({ object, type = editorOptions.scaleType, withoutSave, fitAsOneObject } = {}) {
-    const activeObject = object || this.canvas.getActiveObject()
-
-    if (!activeObject) return
-
-    if (['activeselection'].includes(activeObject.type) && !fitAsOneObject) {
-      const selectedItems = activeObject.getObjects()
-
-      this.canvas.discardActiveObject()
-
-      selectedItems.forEach((obj) => {
-        const objScale = calculateScaleFactor({ montageArea: this.montageArea, imageObject: obj, scaleType: type })
-
-        obj.scale(objScale)
-        this.canvas.centerObject(obj)
-      })
-
-      const sel = new ActiveSelection(selectedItems, {
-        canvas: this.canvas
-      })
-
-      this.canvas.setActiveObject(sel)
-    } else {
-      const scaleFactor = calculateScaleFactor({
-        montageArea: this.montageArea,
-        imageObject: activeObject,
-        scaleType: type
-      })
-
-      activeObject.scale(scaleFactor)
-      this.canvas.centerObject(activeObject)
-    }
-
-    this.canvas.renderAll()
-
-    if (!withoutSave) {
-      this.historyManager.saveState()
-    }
-
-    this.canvas.fire('editor:image-fitted', { type })
-  },
-
-  /**
    * Получение всех объектов внутри монтажной области редактора
    * @returns {Array} массив объектов
    */
