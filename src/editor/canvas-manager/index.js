@@ -8,14 +8,11 @@ import {
 
 export default class CanvasManager {
   /**
-   * @param {fabric.Canvas} canvas
-   * @param {HistoryManager} historyManager
-   * @param {object} editorOptions
-   * @param {fabric.Rect} montageArea
+   * @param {object} options
+   * @param {ImageEditor} options.editor – экземпляр редактора
    */
-  constructor({ editor, editorOptions }) {
+  constructor({ editor }) {
     this.editor = editor
-    this.editorOptions = editorOptions
   }
 
   /**
@@ -29,12 +26,15 @@ export default class CanvasManager {
   setResolutionWidth(width, { preserveProportional, withoutSave, adaptCanvasToContainer } = {}) {
     if (!width) return
 
-    const { canvas, montageArea } = this.editor
+    const {
+      canvas,
+      montageArea,
+      options: { canvasBackstoreWidth }
+    } = this.editor
+
     const { width: montageAreaWidth, height: montageAreaHeight } = montageArea
 
     const adjustedWidth = Number(Math.max(Math.min(width, CANVAS_MAX_WIDTH), CANVAS_MIN_WIDTH))
-
-    const { canvasBackstoreWidth } = this.editorOptions
 
     // Если ширина канваса не задана или равна 'auto', адаптируем канвас к контейнеру
     if (!canvasBackstoreWidth || canvasBackstoreWidth === 'auto' || adaptCanvasToContainer) {
@@ -83,12 +83,15 @@ export default class CanvasManager {
   setResolutionHeight(height, { preserveProportional, withoutSave, adaptCanvasToContainer } = {}) {
     if (!height) return
 
-    const { canvas, montageArea } = this.editor
+    const {
+      canvas,
+      montageArea,
+      options: { canvasBackstoreHeight }
+    } = this.editor
+
     const { width: montageAreaWidth, height: montageAreaHeight } = montageArea
 
     const adjustedHeight = Number(Math.max(Math.min(height, CANVAS_MAX_HEIGHT), CANVAS_MIN_HEIGHT))
-
-    const { canvasBackstoreHeight } = this.editorOptions
 
     if (!canvasBackstoreHeight || canvasBackstoreHeight === 'auto' || adaptCanvasToContainer) {
       this.adaptCanvasToContainer()
@@ -313,7 +316,7 @@ export default class CanvasManager {
   setDisplayDimension({ element, dimension, value } = {}) {
     if (!value) return
 
-    const { canvas } = this.editor
+    const { canvas, options: { editorContainer } } = this.editor
 
     const canvasElements = []
 
@@ -325,7 +328,7 @@ export default class CanvasManager {
       canvasElements.push(canvas.wrapperEl)
       break
     case 'container':
-      canvasElements.push(this.editorOptions.editorContainer)
+      canvasElements.push(editorContainer)
       break
     default:
       canvasElements.push(canvas.lowerCanvasEl, canvas.upperCanvasEl)
@@ -364,7 +367,15 @@ export default class CanvasManager {
    * @fires editor:canvas-scaled
    */
   scaleMontageAreaToImage({ object, preserveAspectRatio, withoutSave } = {}) {
-    const { canvas, montageArea, transformManager } = this.editor
+    const {
+      canvas,
+      montageArea,
+      transformManager,
+      options: {
+        montageAreaWidth: initialMontageAreaWidth,
+        montageAreaHeight: initialMontageAreaHeight
+      }
+    } = this.editor
 
     const image = object || canvas.getActiveObject()
 
@@ -387,25 +398,26 @@ export default class CanvasManager {
     let newCanvasHeight = Math.min(imageHeight, CANVAS_MAX_HEIGHT)
 
     if (preserveAspectRatio) {
-      const { width: montageAreaWidth, height: montageAreaHeight } = montageArea
+      const {
+        width: currentMontageAreaWidth,
+        height: currentMontageAreaHeight
+      } = montageArea
 
-      const widthMultiplier = imageWidth / montageAreaWidth
-      const heightMultiplier = imageHeight / montageAreaHeight
+      const widthMultiplier = imageWidth / currentMontageAreaWidth
+      const heightMultiplier = imageHeight / currentMontageAreaHeight
 
       const multiplier = Math.max(widthMultiplier, heightMultiplier)
 
-      newCanvasWidth = montageAreaWidth * multiplier
-      newCanvasHeight = montageAreaHeight * multiplier
+      newCanvasWidth = currentMontageAreaWidth * multiplier
+      newCanvasHeight = currentMontageAreaHeight * multiplier
     }
 
     this.setResolutionWidth(newCanvasWidth, { withoutSave: true })
     this.setResolutionHeight(newCanvasHeight, { withoutSave: true })
 
-    const { montageAreaWidth, montageAreaHeight } = this.editorOptions
-
     // Если изображение больше монтажной области, то устанавливаем зум по умолчанию
-    if (imageWidth > montageAreaWidth || imageHeight > montageAreaHeight) {
-      transformManager.calculateAndApplyDefaultZoom(montageAreaWidth, montageAreaHeight)
+    if (imageWidth > initialMontageAreaWidth || imageHeight > initialMontageAreaHeight) {
+      transformManager.calculateAndApplyDefaultZoom(initialMontageAreaWidth, initialMontageAreaHeight)
     }
 
     transformManager.resetObject(image, { withoutSave: true })
@@ -424,11 +436,9 @@ export default class CanvasManager {
    * @fires editor:cleared
    */
   clearCanvas() {
-    const { canvas, historyManager } = this.editor
+    const { canvas, montageArea, historyManager } = this.editor
 
     historyManager.suspendHistory()
-    // Сохраняем ссылку на монтажную область
-    const { montageArea } = this
 
     // Полностью очищаем канвас (удаляются все объекты, фоны, оверлеи и т.д.)
     canvas.clear()
@@ -451,13 +461,20 @@ export default class CanvasManager {
    * @fires editor:default-scale-set
    */
   setDefaultScale({ withoutSave } = {}) {
-    const { canvas, transformManager, historyManager } = this.editor
-    const { montageAreaWidth, montageAreaHeight } = this.editorOptions
+    const {
+      canvas,
+      transformManager,
+      historyManager,
+      options: {
+        montageAreaWidth: initialMontageAreaWidth,
+        montageAreaHeight: initialMontageAreaHeight
+      }
+    } = this.editor
 
     transformManager.resetZoom()
 
-    this.setResolutionWidth(montageAreaWidth, { withoutSave: true })
-    this.setResolutionHeight(montageAreaHeight, { withoutSave: true })
+    this.setResolutionWidth(initialMontageAreaWidth, { withoutSave: true })
+    this.setResolutionHeight(initialMontageAreaHeight, { withoutSave: true })
     canvas.renderAll()
 
     transformManager.resetObjects()

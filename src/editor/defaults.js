@@ -100,7 +100,7 @@ export default {
   // Шаг зума
   zoomRatio: 0.1,
 
-  disabledOverlayColor: 'rgba(136, 136, 136, 0.6)',
+  overlayMaskColor: 'rgba(136, 136, 136, 0.6)',
 
   /*
    * Настройки слушателей событий

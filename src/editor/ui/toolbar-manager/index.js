@@ -1,7 +1,11 @@
 import defaultConfig from './default-config'
 
 export default class ToolbarManager {
-  constructor(editor) {
+  /**
+   * @param {object} options
+   * @param {object} options.editor - экземпляр редактора с доступом к canvas
+   */
+  constructor({ editor }) {
     this.options = editor.options
 
     if (!this.options.showToolbar) return
