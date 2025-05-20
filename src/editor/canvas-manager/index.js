@@ -61,8 +61,9 @@ export default class CanvasManager {
     const { left, top } = this.getObjectDefaultCoords(montageArea)
 
     const currentZoom = canvas.getZoom()
-
     canvas.setViewportTransform([currentZoom, 0, 0, currentZoom, left, top])
+
+    this.centerMontageArea()
 
     if (!withoutSave) {
       this.editor.historyManager.saveState()
@@ -363,7 +364,7 @@ export default class CanvasManager {
    * @fires editor:canvas-scaled
    */
   scaleMontageAreaToImage({ object, preserveAspectRatio, withoutSave } = {}) {
-    const { canvas, montageArea } = this.editor
+    const { canvas, montageArea, transformManager } = this.editor
 
     const image = object || canvas.getActiveObject()
 
@@ -404,10 +405,10 @@ export default class CanvasManager {
 
     // Если изображение больше монтажной области, то устанавливаем зум по умолчанию
     if (imageWidth > montageAreaWidth || imageHeight > montageAreaHeight) {
-      this.calculateAndApplyDefaultZoom(montageAreaWidth, montageAreaHeight)
+      transformManager.calculateAndApplyDefaultZoom(montageAreaWidth, montageAreaHeight)
     }
 
-    this.resetObject(image, { withoutSave: true })
+    transformManager.resetObject(image, { withoutSave: true })
     canvas.centerObject(image)
     canvas.renderAll()
 
