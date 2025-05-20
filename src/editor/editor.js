@@ -10,6 +10,7 @@ import HistoryManager from './history-manager'
 import ImageManager from './image-manager'
 import CanvasManager from './canvas-manager'
 import TransformManager from './transform-manager'
+import InteractionBlocker from './interaction-blocker'
 
 import {
   MIN_ZOOM,
@@ -42,15 +43,11 @@ export class ImageEditor {
   constructor(canvasId, options = {}) {
     this.options = options
 
-    const { defaultScale, minZoom, maxZoom, montageAreaWidth, montageAreaHeight } = options
+    const { defaultScale, minZoom, maxZoom } = options
 
     this.containerId = canvasId
     this.editorId = `${canvasId}-${nanoid()}`
-    this.isDisabled = false
-    this.disabledOverlay = null
     this.clipboard = null
-
-    this._createdBlobUrls = []
 
     this.defaultZoom = defaultScale
 
@@ -58,43 +55,6 @@ export class ImageEditor {
     this.maxZoom = maxZoom || MAX_ZOOM
 
     CustomizedControls.apply()
-
-    this.canvas = new Canvas(canvasId, options)
-
-    this.historyManager = new HistoryManager(this, options.maxHistoryLength)
-    this.toolbar = new ToolbarManager(this)
-    this._initEditorWorker()
-
-    // TODO: Рассмотреть возможность использования свойства excludeFromExport
-    this.montageArea = new Rect({
-      width: montageAreaWidth,
-      height: montageAreaHeight,
-      fill: createMosaicPattern(),
-      stroke: null,
-      strokeWidth: 0,
-      selectable: false,
-      evented: false,
-      id: 'montage-area',
-      originX: 'center',
-      originY: 'center',
-      objectCaching: false,
-      noScaleCache: true
-    })
-
-    this.transformManager = new TransformManager({
-      editor: this,
-      editorOptions: options
-    })
-
-    this.canvasManager = new CanvasManager({
-      editor: this,
-      editorOptions: options
-    })
-
-    this.imageManager = new ImageManager({
-      editor: this,
-      editorOptions: options
-    })
 
     this.init()
   }
@@ -115,7 +75,33 @@ export class ImageEditor {
       _onReadyCallback
     } = this.options
 
+    this.canvas = new Canvas(this.containerId, this.options)
+
+    // TODO: Рассмотреть возможность использования свойства excludeFromExport
+    this.montageArea = new Rect({
+      width: montageAreaWidth,
+      height: montageAreaHeight,
+      fill: createMosaicPattern(),
+      stroke: null,
+      strokeWidth: 0,
+      selectable: false,
+      evented: false,
+      id: 'montage-area',
+      originX: 'center',
+      originY: 'center',
+      objectCaching: false,
+      noScaleCache: true
+    })
+
     this.canvas.add(this.montageArea)
+
+    this.workerManager = new WorkerManager()
+    this.historyManager = new HistoryManager({ editor: this })
+    this.toolbar = new ToolbarManager({ editor: this })
+    this.transformManager = new TransformManager({ editor: this })
+    this.canvasManager = new CanvasManager({ editor: this })
+    this.imageManager = new ImageManager({ editor: this })
+    this.interactionBlocker = new InteractionBlocker({ editor: this })
 
     // Создаем область для клиппинга (без fill, чтобы не влиял на экспорт)
     const montageAreaClip = new Rect({
@@ -138,8 +124,6 @@ export class ImageEditor {
     )
 
     this.listeners = new Listeners({ editor: this, options: this.options })
-
-    this._createDisabledOverlay()
 
     this.canvasManager.setEditorContainerWidth(editorContainerWidth)
     this.canvasManager.setEditorContainerHeight(editorContainerHeight)
@@ -177,55 +161,13 @@ export class ImageEditor {
   }
 
   /**
-   * Создаёт overlay для блокировки монтажной области
-   */
-  _createDisabledOverlay() {
-    this.historyManager.suspendHistory()
-
-    const { disabledOverlayColor } = this.options
-
-    // получаем координаты монтажной области
-    this.montageArea.setCoords()
-    const { left, top, width, height } = this.montageArea.getBoundingRect()
-
-    // создаём overlay‑объект
-    this.disabledOverlay = new Rect({
-      left,
-      top,
-      width,
-      height,
-      fill: disabledOverlayColor,
-      selectable: false,
-      evented: true,
-      hoverCursor: 'not‑allowed',
-      hasBorders: false,
-      hasControls: false,
-      visible: false,
-      id: 'disabled-overlay'
-    })
-
-    // рисуем его поверх всех
-    this.canvas.add(this.disabledOverlay)
-    this.canvas.renderAll()
-    this.historyManager.resumeHistory()
-  }
-
-  _initEditorWorker() {
-    this.workerManager = new WorkerManager()
-    this.worker = this.workerManager.worker
-  }
-
-  /**
    * Метод для удаления редактора и всех слушателей.
    */
   destroy() {
     this.listeners.destroy()
     this.toolbar.destroy()
     this.canvas.dispose()
-    this.worker.terminate()
-
-    // удаляем все созданные blob-URL
-    this._createdBlobUrls.forEach(URL.revokeObjectURL)
-    this._createdBlobUrls = []
+    this.workerManager.worker.terminate()
+    this.imageManager.revokeBlobUrls()
   }
 }

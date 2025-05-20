@@ -11,23 +11,22 @@ export default class TransformManager {
   /**
    * @param {object} options
    * @param {object} options.editor - экземпляр редактора с доступом к canvas
-   * @param {object} options.editorOptions - опции редактора
    */
-  constructor({ editor, editorOptions }) {
+  constructor({ editor }) {
     this.editor = editor
-    this.editorOptions = editorOptions
+    this.options = editor.options
   }
 
   /**
    * Метод рассчитывает дефолтный, максимальный, и минимальный зум таким образом,
    * чтобы монтажная область визуально занимала переданные размеры.
-   * Если размеры не переданы, то используются дефолтные размеры монтажной области переданные в editorOptions.
+   * Если размеры не переданы, то используются дефолтные размеры монтажной области переданные в options.
    * @param {number} [targetWidth]  — желаемая видимая ширина (px)
    * @param {number} [targetHeight] — желаемая видимая высота (px)
    */
   calculateAndApplyDefaultZoom(
-    targetWidth = this.editorOptions.montageAreaWidth,
-    targetHeight = this.editorOptions.montageAreaHeight
+    targetWidth = this.options.montageAreaWidth,
+    targetHeight = this.options.montageAreaHeight
   ) {
     const { width: montageWidth, height: montageHeight } = this.editor.montageArea
 
@@ -37,7 +36,7 @@ export default class TransformManager {
     // выбираем меньший зум, чтобы монтажная область целиком помещалась
     const defaultZoom = Math.min(scaleX, scaleY)
 
-    const { minZoom, maxZoom, maxZoomFactor } = this.editorOptions
+    const { minZoom, maxZoom, maxZoomFactor } = this.options
 
     // устанавливаем допустимые пределы зума
     this.minZoom = Math.min(defaultZoom / maxZoomFactor, minZoom)
@@ -232,7 +231,7 @@ export default class TransformManager {
    * @param {Boolean} [options.fitAsOneObject] - Масштабировать все объекты в активной группе как один объект
    * @fires editor:image-fitted
    */
-  fitObject({ object, type = this.editorOptions.scaleType, withoutSave, fitAsOneObject } = {}) {
+  fitObject({ object, type = this.options.scaleType, withoutSave, fitAsOneObject } = {}) {
     const { canvas, montageArea, historyManager } = this.editor
 
     const activeObject = object || canvas.getActiveObject()
@@ -291,7 +290,12 @@ export default class TransformManager {
    * @fires editor:object-reset
    */
   resetObject(object, { alwaysFitObject = false, withoutSave = false } = {}) {
-    const { canvas, montageArea, historyManager } = this.editor
+    const {
+      canvas,
+      montageArea,
+      historyManager,
+      options: { scaleType }
+    } = this.editor
 
     const currentObject = object || canvas.getActiveObject()
 
@@ -321,14 +325,14 @@ export default class TransformManager {
       const scaleFactor = calculateScaleFactor({
         montageArea,
         imageObject: currentObject,
-        scaleType: this.editorOptions.scaleType
+        scaleType
       })
 
       // Делаем contain и cover только если размеры изображения больше размеров канваса, иначе просто сбрасываем
       if (
-        (this.editorOptions.scaleType === 'contain' && scaleFactor < 1)
+        (scaleType === 'contain' && scaleFactor < 1)
         || (
-          this.editorOptions.scaleType === 'cover'
+          scaleType === 'cover'
           && (imageWidth > montageAreaWidth || imageHeight > montageAreaHeight)
         )
       ) {

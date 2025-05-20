@@ -4,17 +4,17 @@ import { create as diffPatchCreate } from 'jsondiffpatch'
 
 export default class HistoryManager {
   /**
-   * @param {object} editor - экземпляр редактора с доступом к canvas
-   * @param {number} [maxHistoryLength=50] - максимальная длина истории
+   * @param {object} options
+   * @param {object} options.editor - экземпляр редактора с доступом к canvas
    */
-  constructor(editor, maxHistoryLength = 50) {
+  constructor({ editor }) {
     this.editor = editor
     this.canvas = editor.canvas
     this._historySuspendCount = 0
     this.baseState = null
     this.patches = []
     this.currentIndex = 0
-    this.maxHistoryLength = maxHistoryLength
+    this.maxHistoryLength = editor.options.maxHistoryLength
 
     this.diffPatcher = diffPatchCreate({
       objectHash(obj) {
@@ -158,10 +158,11 @@ export default class HistoryManager {
       this.editor.montageArea = loadedMontage
     }
 
-    const loadedDisabled = this.canvas.getObjects().find((obj) => obj.id === 'disabled-overlay')
-    if (loadedDisabled) {
-      this.editor.disabledOverlay = loadedDisabled
-      this.editor.disabledOverlay.visible = false
+    const loadedOverlayMask = this.canvas.getObjects().find((obj) => obj.id === 'overlay-mask')
+
+    if (loadedOverlayMask) {
+      this.editor.interactionBlocker.overlayMask = loadedOverlayMask
+      this.editor.interactionBlocker.overlayMask.visible = false
     }
 
     this.canvas.renderAll()
