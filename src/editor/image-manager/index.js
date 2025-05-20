@@ -40,7 +40,7 @@ export default class ImageManager {
   }) {
     if (!source) return
 
-    const { canvas, montageArea, historyManager } = this.editor
+    const { canvas, montageArea, transformManager, historyManager, _createdBlobUrls } = this.editor
 
     historyManager.suspendHistory()
 
@@ -60,7 +60,7 @@ export default class ImageManager {
       }
 
       // Создаем blobURL и добавляем его в массив для последующего удаления (destroy)
-      this.editor._createdBlobUrls.push(dataUrl)
+      _createdBlobUrls.push(dataUrl)
 
       const format = ImageManager.getFormatFromContentType(contentType)
 
@@ -82,7 +82,7 @@ export default class ImageManager {
       if (imageHeight > CANVAS_MAX_HEIGHT || imageWidth > CANVAS_MAX_WIDTH) {
         const resizedBlob = await this.resizeImageToBoundaries(img._element.src, 'max')
         const resizedBlobURL = URL.createObjectURL(resizedBlob)
-        this.editor._createdBlobUrls.push(resizedBlobURL)
+        _createdBlobUrls.push(resizedBlobURL)
 
         // Создаем новый объект FabricImage из уменьшенного dataURL
         img = await FabricImage.fromURL(resizedBlobURL, { crossOrigin: 'anonymous' })
@@ -97,12 +97,12 @@ export default class ImageManager {
         const scaleFactor = calculateScaleFactor({ montageArea, imageObject: img, scaleType: scale })
 
         if (scale === 'image-contain' && scaleFactor < 1) {
-          this.fitObject({ object: img, type: 'contain', withoutSave: true })
+          transformManager.fitObject({ object: img, type: 'contain', withoutSave: true })
         } else if (
           scale === 'image-cover'
           && (imageWidth > montageAreaWidth || imageHeight > montageAreaHeight)
         ) {
-          this.fitObject({ object: img, type: 'cover', withoutSave: true })
+          transformManager.fitObject({ object: img, type: 'cover', withoutSave: true })
         }
       }
 
@@ -441,7 +441,15 @@ export default class ImageManager {
   }
 
   /**
-   * Преобразует Blob/DataURL в файл или base64
+   * Преобразует SVG-строку в Blob, файл, или base64
+   * @param {string} svgString - SVG-строка
+   * @param {Object} options - опции
+   * @param {Boolean} options.exportAsBase64 - экспортировать как base64
+   * @param {Boolean} options.exportAsBlob - экспортировать как blob
+   * @param {String} options.fileName - имя файла
+   * @returns {Blob|String|File} - Blob, base64 или файл
+   * @private
+   * @static
    */
   static _exportSVGStringAsFile(svgString, { exportAsBase64, exportAsBlob, fileName } = {}) {
     if (exportAsBlob) {
@@ -460,6 +468,7 @@ export default class ImageManager {
    * отбросив любую часть после «+» или «;»
    * @param {string} contentType
    * @returns {string} формат, например 'png', 'jpeg', 'svg'
+   * @static
    */
   static getFormatFromContentType(contentType = '') {
     const match = contentType.match(/^[^/]+\/([^+;]+)/)

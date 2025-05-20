@@ -1,3 +1,5 @@
+import { ActiveSelection } from 'fabric'
+
 import {
   DEFAULT_ZOOM_RATIO,
   DEFAULT_ROTATE_RATIO
@@ -217,6 +219,59 @@ export default class TransformManager {
     }
 
     canvas.fire('editor:object-opacity-changed', opacity)
+  }
+
+  /**
+   * Масштабирование изображения
+   * @param {Object} options
+   * @param {fabric.Object} [options.object] - Объект с изображением, которое нужно масштабировать
+   * @param {String} [options.type] - Тип масштабирования
+   * 'contain' - скейлит картинку, чтобы она вмещалась
+   * 'cover' - скейлит картинку, чтобы она вписалась в размер канвас
+   * @param {Boolean} [options.withoutSave] - Не сохранять состояние
+   * @param {Boolean} [options.fitAsOneObject] - Масштабировать все объекты в активной группе как один объект
+   * @fires editor:image-fitted
+   */
+  fitObject({ object, type = this.editorOptions.scaleType, withoutSave, fitAsOneObject } = {}) {
+    const { canvas, montageArea, historyManager } = this.editor
+
+    const activeObject = object || canvas.getActiveObject()
+
+    if (!activeObject) return
+
+    if (['activeselection'].includes(activeObject.type) && !fitAsOneObject) {
+      const selectedItems = activeObject.getObjects()
+
+      canvas.discardActiveObject()
+
+      selectedItems.forEach((obj) => {
+        const objScale = calculateScaleFactor({ montageArea, imageObject: obj, scaleType: type })
+
+        obj.scale(objScale)
+        canvas.centerObject(obj)
+      })
+
+      const sel = new ActiveSelection(selectedItems, { canvas })
+
+      canvas.setActiveObject(sel)
+    } else {
+      const scaleFactor = calculateScaleFactor({
+        montageArea,
+        imageObject: activeObject,
+        scaleType: type
+      })
+
+      activeObject.scale(scaleFactor)
+      canvas.centerObject(activeObject)
+    }
+
+    canvas.renderAll()
+
+    if (!withoutSave) {
+      historyManager.saveState()
+    }
+
+    canvas.fire('editor:image-fitted', { type })
   }
 
   /**
