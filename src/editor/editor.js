@@ -84,11 +84,10 @@ export class ImageEditor {
     this.imageManager = new ImageManager({ editor: this })
     this.layerManager = new LayerManager({ editor: this })
     this.shapeManager = new ShapeManager({ editor: this })
+    this.interactionBlocker = new InteractionBlocker({ editor: this })
 
     this._createMonageArea()
     this._createClippingArea()
-
-    this.interactionBlocker = new InteractionBlocker({ editor: this })
 
     Object.assign(
       this,
