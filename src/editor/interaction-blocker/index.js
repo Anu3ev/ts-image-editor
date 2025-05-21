@@ -21,23 +21,18 @@ export default class InteractionBlocker {
   _createOverlay() {
     const {
       canvas,
-      montageArea,
       historyManager,
       options: { overlayMaskColor = 'rgba(0,0,0,0.5)' }
     } = this.editor
 
     historyManager.suspendHistory()
 
-    // рассчитываем позицию и получаем координаты монтажной области
-    montageArea.setCoords()
-    const { left, top, width, height } = montageArea.getBoundingRect()
-
     // создаём overlay‑объект
     this.overlayMask = new Rect({
-      left,
-      top,
-      width,
-      height,
+      left: 0,
+      top: 0,
+      width: 100,
+      height: 100,
       fill: overlayMaskColor,
       selectable: false,
       evented: true,
@@ -64,6 +59,8 @@ export default class InteractionBlocker {
 
     const { canvas, montageArea, historyManager } = this.editor
 
+    if (!montageArea) return
+
     historyManager.suspendHistory()
 
     // получаем в экранных координатах то, что отображает монтажную зону
@@ -74,7 +71,7 @@ export default class InteractionBlocker {
     this.overlayMask.set({ left, top, width, height })
     canvas.discardActiveObject()
 
-    this.editor.bringToFront(this.overlayMask, { withoutSave: true })
+    this.editor.layerManager.bringToFront(this.overlayMask, { withoutSave: true })
     historyManager.resumeHistory()
   }
 

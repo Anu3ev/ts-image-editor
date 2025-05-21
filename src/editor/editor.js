@@ -1,4 +1,4 @@
-import { Canvas, Rect } from 'fabric'
+import { Canvas } from 'fabric'
 
 import { nanoid } from 'nanoid'
 import methods from './methods'
@@ -11,6 +11,8 @@ import ImageManager from './image-manager'
 import CanvasManager from './canvas-manager'
 import TransformManager from './transform-manager'
 import InteractionBlocker from './interaction-blocker'
+import LayerManager from './layer-manager'
+import ShapeManager from './shape-manager'
 
 import {
   MIN_ZOOM,
@@ -29,7 +31,7 @@ import {
 // TODO: Подумать как работать с переводами в редакторе
 // TODO: Поработать с автоматическим рассчётом высоты монтажной области
 // TODO: Если айтем заблокирован, то при вызове resetObject мы не должны ничего делать
-// TODO: Динамически импортировать библиотеку для конвертации в PDF
+// TODO: Динамически импортировать и кешировать модули
 
 /**
  * Класс редактора изображений.
@@ -61,8 +63,6 @@ export class ImageEditor {
 
   async init() {
     const {
-      montageAreaWidth,
-      montageAreaHeight,
       editorContainerWidth,
       editorContainerHeight,
       canvasWrapperWidth,
@@ -76,47 +76,18 @@ export class ImageEditor {
     } = this.options
 
     this.canvas = new Canvas(this.containerId, this.options)
-
-    // TODO: Рассмотреть возможность использования свойства excludeFromExport
-    this.montageArea = new Rect({
-      width: montageAreaWidth,
-      height: montageAreaHeight,
-      fill: createMosaicPattern(),
-      stroke: null,
-      strokeWidth: 0,
-      selectable: false,
-      evented: false,
-      id: 'montage-area',
-      originX: 'center',
-      originY: 'center',
-      objectCaching: false,
-      noScaleCache: true
-    })
-
-    this.canvas.add(this.montageArea)
-
     this.workerManager = new WorkerManager()
     this.historyManager = new HistoryManager({ editor: this })
     this.toolbar = new ToolbarManager({ editor: this })
     this.transformManager = new TransformManager({ editor: this })
     this.canvasManager = new CanvasManager({ editor: this })
     this.imageManager = new ImageManager({ editor: this })
+    this.layerManager = new LayerManager({ editor: this })
+    this.shapeManager = new ShapeManager({ editor: this })
     this.interactionBlocker = new InteractionBlocker({ editor: this })
 
-    // Создаем область для клиппинга (без fill, чтобы не влиял на экспорт)
-    const montageAreaClip = new Rect({
-      width: montageAreaWidth,
-      height: montageAreaHeight,
-      stroke: null,
-      strokeWidth: 0,
-      selectable: false,
-      evented: false,
-      id: 'area-clip',
-      originX: 'center',
-      originY: 'center'
-    })
-
-    this.canvas.clipPath = montageAreaClip
+    this._createMonageArea()
+    this._createClippingArea()
 
     Object.assign(
       this,
@@ -158,6 +129,58 @@ export class ImageEditor {
     if (typeof _onReadyCallback === 'function') {
       _onReadyCallback(this)
     }
+  }
+
+  /**
+   * Создаёт монтажную область
+   * @private
+   * @returns {void}
+   */
+  _createMonageArea() {
+    const {
+      montageAreaWidth,
+      montageAreaHeight
+    } = this.options
+
+    this.montageArea = this.shapeManager.addRectangle({
+      width: montageAreaWidth,
+      height: montageAreaHeight,
+      fill: createMosaicPattern(),
+      stroke: null,
+      strokeWidth: 0,
+      selectable: false,
+      evented: false,
+      id: 'montage-area',
+      originX: 'center',
+      originY: 'center',
+      objectCaching: false,
+      noScaleCache: true
+    }, { withoutSelection: true })
+  }
+
+  /**
+   * Создаёт область клиппинга
+   * @private
+   * @returns {void}
+   */
+  _createClippingArea() {
+    const {
+      montageAreaWidth,
+      montageAreaHeight
+    } = this.options
+
+    this.canvas.clipPath = this.shapeManager.addRectangle({
+      id: 'area-clip',
+      width: montageAreaWidth,
+      height: montageAreaHeight,
+      stroke: null,
+      fill: null,
+      strokeWidth: 0,
+      selectable: false,
+      evented: false,
+      originX: 'center',
+      originY: 'center'
+    }, { withoutSelection: true, withoutAdding: true })
   }
 
   /**
