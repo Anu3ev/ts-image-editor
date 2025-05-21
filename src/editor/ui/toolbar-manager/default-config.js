@@ -112,19 +112,19 @@ export default {
     },
 
     bringForward: (editor) => {
-      editor.bringForward()
+      editor.layerManager.bringForward()
     },
 
     bringToFront: (editor) => {
-      editor.bringToFront()
+      editor.layerManager.bringToFront()
     },
 
     sendToBack: (editor) => {
-      editor.sendToBack()
+      editor.layerManager.sendToBack()
     },
 
     sendBackwards: (editor) => {
-      editor.sendBackwards()
+      editor.layerManager.sendBackwards()
     }
   }
 }

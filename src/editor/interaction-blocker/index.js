@@ -64,6 +64,8 @@ export default class InteractionBlocker {
 
     const { canvas, montageArea, historyManager } = this.editor
 
+    if (!montageArea) return
+
     historyManager.suspendHistory()
 
     // получаем в экранных координатах то, что отображает монтажную зону
@@ -74,7 +76,7 @@ export default class InteractionBlocker {
     this.overlayMask.set({ left, top, width, height })
     canvas.discardActiveObject()
 
-    this.editor.bringToFront(this.overlayMask, { withoutSave: true })
+    this.editor.layerManager.bringToFront(this.overlayMask, { withoutSave: true })
     historyManager.resumeHistory()
   }
 

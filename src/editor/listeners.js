@@ -404,7 +404,7 @@ class Listeners {
   handleBringToFront({ selected }) {
     if (!selected?.length) return
     selected.forEach((obj) => {
-      this.editor.bringToFront(obj)
+      this.editor.layerManager.bringToFront(obj)
     })
   }
 
