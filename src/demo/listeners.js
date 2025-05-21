@@ -92,22 +92,22 @@ export default (editorInstance) => {
 
   // Bring to front
   bringToFrontBtn.addEventListener('click', () => {
-    editorInstance.bringToFront()
+    editorInstance.layerManager.bringToFront()
   })
 
   // Bring forward
   bringForwardBtn.addEventListener('click', () => {
-    editorInstance.bringForward()
+    editorInstance.layerManager.bringForward()
   })
 
   // Send to back
   sendToBackBtn.addEventListener('click', () => {
-    editorInstance.sendToBack()
+    editorInstance.layerManager.sendToBack()
   })
 
   // Send backwards
   sendBackwardsBtn.addEventListener('click', () => {
-    editorInstance.sendBackwards()
+    editorInstance.layerManager.sendBackwards()
   })
 
   // Сброс масштаба
@@ -201,17 +201,17 @@ export default (editorInstance) => {
 
   // Добавление прямоугольника
   addRectBtn.addEventListener('click', () => {
-    editorInstance.addRectangle()
+    editorInstance.shapeManager.addRectangle()
   })
 
   // Добавление круга
   addCircleBtn.addEventListener('click', () => {
-    editorInstance.addCircle()
+    editorInstance.shapeManager.addCircle()
   })
 
   // Добавление треугольника
   addTriangleBtn.addEventListener('click', () => {
-    editorInstance.addTriangle()
+    editorInstance.shapeManager.addTriangle()
   })
 
   // Undo

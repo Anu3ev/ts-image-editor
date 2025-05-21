@@ -4,6 +4,8 @@ function getCanvasResolution(editorInstance) {
 }
 
 function getMontageAreaResolution(editorInstance) {
+  if (!editorInstance.montageArea) return ''
+
   return `${editorInstance.montageArea.width}x${editorInstance.montageArea.height}`
 }
 
