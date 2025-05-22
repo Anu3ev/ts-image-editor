@@ -3,6 +3,7 @@ import { Canvas } from 'fabric'
 import { nanoid } from 'nanoid'
 import methods from './methods'
 import Listeners from './listeners'
+import ModuleLoader from './module-loader'
 import WorkerManager from './worker-manager'
 import CustomizedControls from './customized-controls'
 import ToolbarManager from './ui/toolbar-manager'
@@ -76,6 +77,7 @@ export class ImageEditor {
     } = this.options
 
     this.canvas = new Canvas(this.containerId, this.options)
+    this.moduleLoader = new ModuleLoader()
     this.workerManager = new WorkerManager()
     this.historyManager = new HistoryManager({ editor: this })
     this.toolbar = new ToolbarManager({ editor: this })

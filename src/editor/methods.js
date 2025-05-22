@@ -1,9 +1,6 @@
 import {
   ActiveSelection,
-  Group,
-  Rect,
-  Circle,
-  Triangle
+  Group
 } from 'fabric'
 
 import { nanoid } from 'nanoid'
