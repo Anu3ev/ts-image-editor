@@ -277,7 +277,7 @@ export default class TransformManager {
    * Установка дефолтного масштаба для всех объектов внутри монтажной области редактора
    */
   resetObjects() {
-    this.editor.getObjects().forEach((obj) => {
+    this.editor.canvasManager.getObjects().forEach((obj) => {
       this.resetObject(obj)
     })
   }

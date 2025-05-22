@@ -25,7 +25,7 @@ class Listeners {
 
     // Создаем и сохраняем привязанные обработчики, чтобы потом можно было их снять.
     // Глобальные (DOM) события:
-    this.handleAdaptCanvasToContainerBound = this.editor.debounce(this.handleAdaptCanvasToContainer.bind(this), 500)
+    this.handleAdaptCanvasToContainerBound = this.debounce(this.handleAdaptCanvasToContainer.bind(this), 500)
     this.handleCopyEventBound = this.handleCopyEvent.bind(this)
     this.handlePasteEventBound = this.handlePasteEvent.bind(this)
     this.handleUndoRedoEventBound = this.handleUndoRedoEvent.bind(this)
@@ -34,8 +34,8 @@ class Listeners {
     this.handleDeleteObjectsEventBound = this.handleDeleteObjectsEvent.bind(this)
 
     // Canvas (Fabric) события:
-    this.handleObjectModifiedHistoryBound = this.editor.debounce(this.handleObjectModifiedHistory.bind(this), 300)
-    this.handleObjectRotatingHistoryBound = this.editor.debounce(this.handleObjectRotatingHistory.bind(this), 300)
+    this.handleObjectModifiedHistoryBound = this.debounce(this.handleObjectModifiedHistory.bind(this), 300)
+    this.handleObjectRotatingHistoryBound = this.debounce(this.handleObjectRotatingHistory.bind(this), 300)
     this.handleObjectAddedHistoryBound = this.handleObjectAddedHistory.bind(this)
     this.handleObjectRemovedHistoryBound = this.handleObjectRemovedHistory.bind(this)
     this.handleOverlayUpdateBound = this.handleOverlayUpdate.bind(this)
@@ -131,7 +131,6 @@ class Listeners {
    * При массовом выделении объектов удаляем из него залоченные.
    */
   _filterLockedSelection({ selected }) {
-    console.log('selected', selected)
     if (!selected?.length) return
 
     //  Если объект один, то просто делаем его активным, не важно залочен он или нет
@@ -232,7 +231,7 @@ class Listeners {
     if ((!ctrlKey && !metaKey) || code !== 'KeyC') return
 
     event.preventDefault()
-    this.editor.copy()
+    this.editor.clipboardManager.copy()
   }
 
   /**
@@ -247,20 +246,21 @@ class Listeners {
     const { items } = clipboardData
     const lastItem = items[items.length - 1]
 
+    // Если в буфере обмена есть изображение, то получаем и вставляем его
     if (lastItem.type.indexOf('image') !== -1) {
       const blob = lastItem.getAsFile()
       if (!blob) return
 
       const reader = new FileReader()
       reader.onload = (f) => {
-        this.editor.imageManager.importImage({ url: f.target.result })
+        this.editor.imageManager.importImage({ source: f.target.result })
       }
 
       reader.readAsDataURL(blob)
       return
     }
 
-    // Если прямого image нет, проверяем данные HTML
+    // Если в буфере text/html c тегом img, то получаем и вставляем его
     const htmlData = clipboardData.getData('text/html')
 
     if (htmlData) {
@@ -269,12 +269,12 @@ class Listeners {
       const img = doc.querySelector('img')
 
       if (img?.src) {
-        this.editor.imageManager.importImage({ url: img.src })
+        this.editor.imageManager.importImage({ source: img.src })
         return
       }
     }
 
-    this.editor.paste()
+    this.editor.clipboardManager.paste()
   }
 
   /**
@@ -324,7 +324,7 @@ class Listeners {
     const { ctrlKey, metaKey, code } = event
     if ((!ctrlKey && !metaKey) || code !== 'KeyA') return
     event.preventDefault()
-    this.editor.selectAll()
+    this.editor.selectionManager.selectAll()
   }
 
   /**
@@ -335,7 +335,7 @@ class Listeners {
   handleDeleteObjectsEvent(event) {
     if (event.code !== 'Delete') return
     event.preventDefault()
-    this.editor.deleteSelectedObjects()
+    this.editor.deletionManager.deleteSelectedObjects()
   }
 
   // --- Обработчики для событий canvas (Fabric) ---
@@ -456,6 +456,19 @@ class Listeners {
 
     this.canvas.off('selection:created', this.handleLockedSelectionBound.bind(this))
     this.canvas.off('selection:updated', this.handleLockedSelectionBound.bind(this))
+  }
+
+  // Дебаунс для снижения частоты сохранения состояния
+  debounce(fn, delay) {
+    let timer = null
+
+    return function(...args) {
+      const context = this
+      clearTimeout(timer)
+      timer = setTimeout(() => {
+        fn.apply(context, args)
+      }, delay)
+    }
   }
 }
 
