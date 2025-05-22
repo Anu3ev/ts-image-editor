@@ -1,16 +1,14 @@
 import initListeners from './listeners'
+import initEditor from '../main'
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async() => {
   // Инициализация редактора
-  window.ImageEditorInit('editor', {
+  const editorInstance = await initEditor('editor', {
     width: 800,
     height: 600,
     displayWidth: '800px',
     displayHeight: '600px'
   })
-
-  const editorInstance = window.editor
-  console.log('editorInstance', editorInstance)
 
   initListeners(editorInstance)
 })
