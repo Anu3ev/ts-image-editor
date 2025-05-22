@@ -32,7 +32,6 @@ import {
 // TODO: Добавление текста
 // TODO: Сделать снэп (прилипание к краям и центру)
 // TODO: Подумать как работать с переводами в редакторе
-// TODO: Если айтем заблокирован, то при вызове resetObject мы не должны ничего делать
 // TODO: Динамически импортировать и кешировать модули
 
 /**
@@ -58,8 +57,6 @@ export class ImageEditor {
     this.minZoom = minZoom || MIN_ZOOM
     this.maxZoom = maxZoom || MAX_ZOOM
 
-    CustomizedControls.apply()
-
     this.init()
   }
 
@@ -76,6 +73,8 @@ export class ImageEditor {
       scaleType,
       _onReadyCallback
     } = this.options
+
+    CustomizedControls.apply()
 
     this.canvas = new Canvas(this.containerId, this.options)
     this.moduleLoader = new ModuleLoader()
