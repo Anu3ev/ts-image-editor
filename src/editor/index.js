@@ -1,7 +1,6 @@
 import { Canvas } from 'fabric'
 
 import { nanoid } from 'nanoid'
-import methods from './methods'
 import Listeners from './listeners'
 import ModuleLoader from './module-loader'
 import WorkerManager from './worker-manager'
@@ -14,6 +13,11 @@ import TransformManager from './transform-manager'
 import InteractionBlocker from './interaction-blocker'
 import LayerManager from './layer-manager'
 import ShapeManager from './shape-manager'
+import ClipboardManager from './clipboard-manager'
+import ObjectLockManager from './object-lock-manager'
+import GroupingManager from './grouping-manager'
+import SelectionManager from './selection-manager'
+import DeletionManager from './deletion-manager'
 
 import {
   MIN_ZOOM,
@@ -26,11 +30,8 @@ import {
 
 // TODO: Режим рисования
 // TODO: Добавление текста
-// TODO: drag'n'drop картинки
 // TODO: Сделать снэп (прилипание к краям и центру)
-// TODO: Разделить внутренние методы и публичные
 // TODO: Подумать как работать с переводами в редакторе
-// TODO: Поработать с автоматическим рассчётом высоты монтажной области
 // TODO: Если айтем заблокирован, то при вызове resetObject мы не должны ничего делать
 // TODO: Динамически импортировать и кешировать модули
 
@@ -87,14 +88,14 @@ export class ImageEditor {
     this.layerManager = new LayerManager({ editor: this })
     this.shapeManager = new ShapeManager({ editor: this })
     this.interactionBlocker = new InteractionBlocker({ editor: this })
+    this.clipboardManager = new ClipboardManager({ editor: this })
+    this.objectLockManager = new ObjectLockManager({ editor: this })
+    this.groupingManager = new GroupingManager({ editor: this })
+    this.selectionManager = new SelectionManager({ editor: this })
+    this.deletionManager = new DeletionManager({ editor: this })
 
     this._createMonageArea()
     this._createClippingArea()
-
-    Object.assign(
-      this,
-      methods({ editorOptions: this.options })
-    )
 
     this.listeners = new Listeners({ editor: this, options: this.options })
 
@@ -119,7 +120,7 @@ export class ImageEditor {
     }
 
     if (initialStateJSON) {
-      this.loadStateFromFullState(initialStateJSON)
+      this.historyManager.loadStateFromFullState(initialStateJSON)
     }
 
     this.historyManager.saveState()

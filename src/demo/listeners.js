@@ -132,22 +132,22 @@ export default (editorInstance) => {
 
   // Группировка объектов
   groupBtn.addEventListener('click', () => {
-    editorInstance.group()
+    editorInstance.groupingManager.group()
   })
 
   // Разгруппировка объектов
   ungroupBtn.addEventListener('click', () => {
-    editorInstance.ungroup()
+    editorInstance.groupingManager.ungroup()
   })
 
   // Удалить выбранный объект
   deleteSelectedBtn.addEventListener('click', () => {
-    editorInstance.deleteSelectedObjects()
+    editorInstance.deletionManager.deleteSelectedObjects()
   })
 
   // Выделить все объекты
   selectAllBtn.addEventListener('click', () => {
-    editorInstance.selectAll()
+    editorInstance.selectionManager.selectAll()
   })
 
   // Очистка холста
@@ -157,12 +157,12 @@ export default (editorInstance) => {
 
   // Копирование объекта
   copyBtn.addEventListener('click', () => {
-    editorInstance.copy()
+    editorInstance.clipboardManager.copy()
   })
 
   // Вставка объекта
   pasteBtn.addEventListener('click', () => {
-    editorInstance.paste()
+    editorInstance.clipboardManager.paste()
   })
 
   // Поворот объекта на 90 градусов

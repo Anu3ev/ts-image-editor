@@ -71,7 +71,7 @@ export default class InteractionBlocker {
   block() {
     if (this.isBlocked) return
 
-    const { canvas, historyManager } = this.editor
+    const { canvas, canvasManager, historyManager } = this.editor
 
     historyManager.suspendHistory()
     this.isBlocked = true
@@ -82,7 +82,7 @@ export default class InteractionBlocker {
     canvas.skipTargetFind = true
 
     // Делаем все объекты не‑evented и не‑selectable
-    this.editor.getObjects().forEach((obj) => {
+    canvasManager.getObjects().forEach((obj) => {
       obj.evented = false
       obj.selectable = false
     })
@@ -105,7 +105,7 @@ export default class InteractionBlocker {
   unblock() {
     if (!this.isBlocked) return
 
-    const { canvas, historyManager } = this.editor
+    const { canvas, canvasManager, historyManager } = this.editor
 
     historyManager.suspendHistory()
     this.isBlocked = false
@@ -115,7 +115,7 @@ export default class InteractionBlocker {
     canvas.skipTargetFind = false
 
     // возвращаем селекты & ивенты
-    this.editor.getObjects().forEach((obj) => {
+    canvasManager.getObjects().forEach((obj) => {
       obj.evented = true
       obj.selectable = true
     })

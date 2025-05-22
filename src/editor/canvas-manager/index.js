@@ -485,4 +485,16 @@ export default class CanvasManager {
 
     canvas.fire('editor:default-scale-set')
   }
+
+  /**
+   * Получение всех объектов внутри монтажной области редактора
+   * @returns {Array} массив объектов
+   */
+  getObjects() {
+    const { canvas, montageArea, interactionBlocker: { overlayMask } } = this.editor
+
+    const canvasObjects = canvas.getObjects()
+
+    return canvasObjects.filter((obj) => obj.id !== montageArea.id && obj.id !== overlayMask.id)
+  }
 }
