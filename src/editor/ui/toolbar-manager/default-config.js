@@ -95,20 +95,20 @@ export default {
 
   handlers: {
     copyPaste: async(editor) => {
-      await editor.copy()
-      await editor.paste()
+      await editor.clipboardManager.copy()
+      await editor.clipboardManager.paste()
     },
 
     delete: (editor) => {
-      editor.deleteSelectedObjects()
+      editor.deletionManager.deleteSelectedObjects()
     },
 
     lock: (editor) => {
-      editor.lockObject()
+      editor.objectLockManager.lockObject()
     },
 
     unlock: (editor) => {
-      editor.unlockObject()
+      editor.objectLockManager.unlockObject()
     },
 
     bringForward: (editor) => {
