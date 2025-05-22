@@ -1,5 +1,3 @@
-import { Rect } from 'fabric'
-
 export default class InteractionBlocker {
   /**
    * @param {object} options
@@ -20,19 +18,13 @@ export default class InteractionBlocker {
    */
   _createOverlay() {
     const {
-      canvas,
       historyManager,
       options: { overlayMaskColor = 'rgba(0,0,0,0.5)' }
     } = this.editor
 
     historyManager.suspendHistory()
 
-    // создаём overlay‑объект
-    this.overlayMask = new Rect({
-      left: 0,
-      top: 0,
-      width: 100,
-      height: 100,
+    this.overlayMask = this.editor.shapeManager.addRectangle({
       fill: overlayMaskColor,
       selectable: false,
       evented: true,
@@ -41,11 +33,7 @@ export default class InteractionBlocker {
       hasControls: false,
       visible: false,
       id: 'overlay-mask'
-    })
-
-    // рисуем его поверх всех
-    canvas.add(this.overlayMask)
-    canvas.renderAll()
+    }, { withoutSelection: true })
 
     historyManager.resumeHistory()
   }
@@ -55,11 +43,9 @@ export default class InteractionBlocker {
    * @returns {void}
    */
   refresh() {
-    if (!this.overlayMask) return
-
     const { canvas, montageArea, historyManager } = this.editor
 
-    if (!montageArea) return
+    if (!montageArea || !this.overlayMask) return
 
     historyManager.suspendHistory()
 
@@ -77,9 +63,9 @@ export default class InteractionBlocker {
 
   /**
    * Выключает редактор:
-   * 1) убирает все селекты, события мыши, скейл/драг–н–дроп
-   * 2) делает все объекты не‑evented и не‑selectable
-   * 3) делает видимым overlayMask поверх всех объектов в монтажной области
+   * - убирает все селекты, события мыши, скейл/драг–н–дроп
+   * - делает все объекты не‑evented и не‑selectable
+   * - делает видимым overlayMask поверх всех объектов в монтажной области
    * @returns {void}
    */
   block() {
@@ -90,18 +76,18 @@ export default class InteractionBlocker {
     historyManager.suspendHistory()
     this.isBlocked = true
 
-    // 1) Убираем все селекты, события мыши, скейл/драг–н–дроп
+    // Убираем все селекты, события мыши, скейл/драг–н–дроп
     canvas.discardActiveObject()
     canvas.selection = false
     canvas.skipTargetFind = true
 
-    // 2) Делаем все объекты не‑evented и не‑selectable
+    // Делаем все объекты не‑evented и не‑selectable
     this.editor.getObjects().forEach((obj) => {
       obj.evented = false
       obj.selectable = false
     })
 
-    // 3) (опционально) блокируем сами canvas‑элементы в DOM
+    // блокируем сами canvas‑элементы в DOM
     canvas.upperCanvasEl.style.pointerEvents = 'none'
     canvas.lowerCanvasEl.style.pointerEvents = 'none'
 
