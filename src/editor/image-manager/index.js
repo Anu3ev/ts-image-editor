@@ -1,6 +1,5 @@
 import { loadSVGFromURL, FabricImage, util } from 'fabric'
 import { nanoid } from 'nanoid'
-import { jsPDF as JsPDF } from 'jspdf'
 import { calculateScaleFactor } from '../helpers'
 import {
   CANVAS_MAX_WIDTH,
@@ -262,6 +261,8 @@ export default class ImageManager {
       const pxToMm = 0.264583 // коэффициент перевода пикселей в миллиметры (при 96 DPI)
       const pdfWidth = width * pxToMm
       const pdfHeight = height * pxToMm
+
+      const JsPDF = (await this.editor.moduleLoader.loadModule('jspdf')).jsPDF
 
       const pdf = new JsPDF({
         orientation: pdfWidth > pdfHeight ? 'landscape' : 'portrait',
