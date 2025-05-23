@@ -40,8 +40,6 @@ export default class ShapeManager {
       width = 100,
       height = 100,
       fill = 'blue',
-      originX = 'center',
-      originY = 'center',
       ...rest
     } = {},
     { withoutSelection, withoutAdding } = {}
@@ -55,8 +53,6 @@ export default class ShapeManager {
       width,
       height,
       fill,
-      originX,
-      originY,
       ...rest
     })
 
@@ -97,8 +93,6 @@ export default class ShapeManager {
       top,
       radius = 50,
       fill = 'green',
-      originX = 'center',
-      originY = 'center',
       ...rest
     } = {},
     { withoutSelection, withoutAdding } = {}
@@ -111,8 +105,6 @@ export default class ShapeManager {
       top,
       fill,
       radius,
-      originX,
-      originY,
       ...rest
     })
 
@@ -153,8 +145,6 @@ export default class ShapeManager {
       top,
       width = 100,
       height = 100,
-      originX = 'center',
-      originY = 'center',
       fill = 'yellow',
       ...rest
     } = {},
@@ -169,8 +159,6 @@ export default class ShapeManager {
       fill,
       width,
       height,
-      originX,
-      originY,
       ...rest
     })
 
