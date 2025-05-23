@@ -1,5 +1,5 @@
-import { ActiveSelection } from 'fabric';
-import { nanoid } from 'nanoid';
+import { ActiveSelection } from 'fabric'
+import { nanoid } from 'nanoid'
 
 export default class ClipboardManager {
   /**
@@ -28,6 +28,7 @@ export default class ClipboardManager {
       // Сохраняем объект в буфере обмена, если он доступен
       if (typeof ClipboardItem === 'undefined' || !navigator.clipboard) {
         console.warn(
+          // eslint-disable-next-line max-len
           'ClipboardManager. navigator.clipboard не поддерживается в этом браузере или отсутствует соединение по HTTPS-протоколу.'
         )
 

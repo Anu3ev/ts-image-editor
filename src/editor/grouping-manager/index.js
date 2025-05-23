@@ -1,6 +1,6 @@
 // src/editor/grouping-manager/index.js
-import { Group, ActiveSelection } from 'fabric';
-import { nanoid } from 'nanoid';
+import { Group, ActiveSelection } from 'fabric'
+import { nanoid } from 'nanoid'
 
 export default class GroupingManager {
   /**
@@ -70,7 +70,7 @@ export default class GroupingManager {
 
     // Выделяем все объекты, которые были в группе
     const sel = new ActiveSelection(grouppedObjects, {
-      canvas: canvas
+      canvas
     })
 
     canvas.setActiveObject(sel)
