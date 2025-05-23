@@ -3,7 +3,7 @@ export default class ModuleLoader {
     this.cache = new Map()
     this.loaders = {
       fabric: () => import('fabric'),
-      jspdf:  () => import('jspdf'),
+      jspdf: () => import('jspdf'),
       nanoid: () => import('nanoid')
     }
   }
