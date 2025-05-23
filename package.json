@@ -1,7 +1,11 @@
 {
-  "name": "image-editor",
-  "private": true,
-  "version": "0.0.0",
+  "name": "@anu3ev/fabric-image-editor",
+  "version": "0.1.0",
+  "description": "JavaScript image editor built on FabricJS, allowing you to create instances with an integrated montage area and providing an API to modify and manage state.",
+  "module": "dist/main.js",
+  "files": [
+    "dist"
+  ],
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -19,19 +23,24 @@
     "eslint-plugin-import": "^2.31.0",
     "eslint-plugin-n": "^15.7.0",
     "eslint-plugin-promise": "^6.6.0",
+    "eslint-plugin-sort-keys-fix": "^1.1.2",
     "eslint-plugin-vue": "^9.32.0",
     "globals": "^15.13.0",
     "prettier": "^3.4.2",
     "vite": "^6.3.5",
     "vite-bundle-analyzer": "^0.21.0",
-    "vite-plugin-babel": "^1.3.0"
+    "vite-plugin-babel": "^1.3.0",
+    "vue-eslint-parser": "^10.1.3"
   },
   "dependencies": {
-    "eslint-plugin-sort-keys-fix": "^1.1.2",
     "fabric": "^6.5.3",
     "jsondiffpatch": "^0.6.0",
     "jspdf": "^3.0.1",
-    "nanoid": "^5.0.9",
-    "vue-eslint-parser": "^9.4.3"
-  }
+    "nanoid": "^5.0.9"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Anu3ev/image-editor.git"
+  },
+  "license": "MIT"
 }
