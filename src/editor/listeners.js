@@ -25,7 +25,7 @@ class Listeners {
 
     // Создаем и сохраняем привязанные обработчики, чтобы потом можно было их снять.
     // Глобальные (DOM) события:
-    this.handleAdaptCanvasToContainerBound = this.debounce(this.handleAdaptCanvasToContainer.bind(this), 500)
+    this.handleAdaptCanvasToContainerBound = Listeners.debounce(this.handleAdaptCanvasToContainer.bind(this), 500)
     this.handleCopyEventBound = this.handleCopyEvent.bind(this)
     this.handlePasteEventBound = this.handlePasteEvent.bind(this)
     this.handleUndoRedoEventBound = this.handleUndoRedoEvent.bind(this)
@@ -34,8 +34,8 @@ class Listeners {
     this.handleDeleteObjectsEventBound = this.handleDeleteObjectsEvent.bind(this)
 
     // Canvas (Fabric) события:
-    this.handleObjectModifiedHistoryBound = this.debounce(this.handleObjectModifiedHistory.bind(this), 300)
-    this.handleObjectRotatingHistoryBound = this.debounce(this.handleObjectRotatingHistory.bind(this), 300)
+    this.handleObjectModifiedHistoryBound = Listeners.debounce(this.handleObjectModifiedHistory.bind(this), 300)
+    this.handleObjectRotatingHistoryBound = Listeners.debounce(this.handleObjectRotatingHistory.bind(this), 300)
     this.handleObjectAddedHistoryBound = this.handleObjectAddedHistory.bind(this)
     this.handleObjectRemovedHistoryBound = this.handleObjectRemovedHistory.bind(this)
     this.handleOverlayUpdateBound = this.handleOverlayUpdate.bind(this)
@@ -459,7 +459,7 @@ class Listeners {
   }
 
   // Дебаунс для снижения частоты сохранения состояния
-  debounce(fn, delay) {
+  static debounce(fn, delay) {
     let timer = null
 
     return function(...args) {
