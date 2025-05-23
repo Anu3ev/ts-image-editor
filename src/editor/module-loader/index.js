@@ -1,10 +1,11 @@
 export default class ModuleLoader {
+  /**
+   * @description Класс для динамической загрузки внешних модулей.
+   */
   constructor() {
     this.cache = new Map()
     this.loaders = {
-      fabric: () => import('fabric'),
-      jspdf: () => import('jspdf'),
-      nanoid: () => import('nanoid')
+      jspdf: () => import('jspdf')
     }
   }
 

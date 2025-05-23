@@ -1,7 +1,5 @@
 // TODO: Почистить консоль логи когда всё будет готово.
-// TODO: Сделать динамческий импорт jsondiffpatch, чтобы не грузить его в основной бандл
 import { create as diffPatchCreate } from 'jsondiffpatch'
-
 export default class HistoryManager {
   /**
    * @param {object} options
@@ -16,6 +14,15 @@ export default class HistoryManager {
     this.currentIndex = 0
     this.maxHistoryLength = editor.options.maxHistoryLength
 
+    this._createDiffPatcher()
+  }
+
+  /** Проверка, нужно ли пропускать сохранение истории */
+  get skipHistory() {
+    return this._historySuspendCount > 0
+  }
+
+  _createDiffPatcher() {
     this.diffPatcher = diffPatchCreate({
       objectHash(obj) {
         return [
@@ -44,11 +51,6 @@ export default class HistoryManager {
         minLength: 60
       }
     })
-  }
-
-  /** Проверка, нужно ли пропускать сохранение истории */
-  get skipHistory() {
-    return this._historySuspendCount > 0
   }
 
   /** Увеличить счётчик приостановки истории */

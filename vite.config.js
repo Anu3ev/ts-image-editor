@@ -21,8 +21,8 @@ export default defineConfig({
       // внешние зависимости – не бандлить их
       external: [
         'fabric',
-        'nanoid',
-        'jspdf'
+        'jspdf',
+        'jsondiffpatch'
       ],
 
       output: {
