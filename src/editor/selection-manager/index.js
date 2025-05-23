@@ -18,9 +18,7 @@ export default class SelectionManager {
 
     canvas.discardActiveObject()
 
-    const sel = new ActiveSelection(canvasManager.getObjects(), {
-      canvas: canvas
-    })
+    const sel = new ActiveSelection(canvasManager.getObjects(), { canvas })
 
     canvas.setActiveObject(sel)
     canvas.requestRenderAll()
