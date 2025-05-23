@@ -17,14 +17,6 @@ const compat = new FlatCompat({
 
 /** @type {import('eslint').Linter.Config[]} */
 export default [{
-  overrides: [
-    {
-      files: ['vite.config.js', 'vite.config.*.js'],
-      rules: {
-        'import/no-extraneous-dependencies': 'off'
-      }
-    }
-  ],
   ignores: []
 }, ...compat.extends(
   'eslint:recommended',
