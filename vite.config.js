@@ -1,38 +1,33 @@
 import { defineConfig } from 'vite'
+import path from 'path'
 import babel from 'vite-plugin-babel'
 import { analyzer } from 'vite-bundle-analyzer'
 
 export default defineConfig({
+  base: './', // делаем ссылки относительными
+
   build: {
-    sourcemap: false,
     target: 'es2015',
+    sourcemap: false,
 
     lib: {
-      entry: 'src/main.js',
+      entry: {
+        bundle: path.resolve(__dirname, 'src/main.js')
+      },
       name: 'ImageEditor',
       formats: ['es'],
-      fileName: (format) => `image-editor.${format}.js`
+      fileName: (format, entryName) => `${entryName}.js`
     },
-
-    outDir: 'dist',
-    emptyOutDir: true,
 
     rollupOptions: {
       // внешние зависимости – не бандлить их
-      external: [
-        'fabric',
-        'jspdf',
-        'jsondiffpatch'
-      ],
+      external: ['fabric', 'jspdf', 'jsondiffpatch']
+    },
 
-      output: {
-        // все файлы – в корень dist, без assets/…
-        entryFileNames: '[name].js',
-        chunkFileNames: '[name].js',
-        assetFileNames: '[name][extname]'
-      }
-    }
+    outDir: 'dist',
+    emptyOutDir: true
   },
+
   plugins: [
     babel(),
     analyzer({
