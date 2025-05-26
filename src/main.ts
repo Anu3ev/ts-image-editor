@@ -1,7 +1,5 @@
-// TODO: Разобраться с типами и с тем как здесь всё должно работать
-
 import { ImageEditor } from './editor'
-import defaults, { IEditorOptions } from './defaults'
+import defaults, { IEditorOptions } from './editor/defaults'
 
 /**
  * Инициализирует редактор, создавая канвас внутри контейнера.
