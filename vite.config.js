@@ -12,7 +12,7 @@ export default defineConfig({
 
     lib: {
       entry: {
-        bundle: path.resolve(__dirname, 'src/main.js')
+        main: path.resolve(__dirname, 'src/main.js')
       },
       name: 'ImageEditor',
       formats: ['es'],
