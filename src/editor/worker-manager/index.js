@@ -5,7 +5,7 @@ export default class WorkerManager {
    * @param {string|URL} [scriptUrl] — URL скрипта воркера.
    * По-умолчанию использует файл рядом с этим модулем
    */
-  constructor(scriptUrl = new URL('./worker.js', import.meta.url)) {
+  constructor(scriptUrl = new URL('./worker.js?no-inline', import.meta.url)) {
     this.worker = new Worker(scriptUrl, { type: 'module' })
     this._callbacks = new Map()
     this.worker.onmessage = this._handleMessage.bind(this)

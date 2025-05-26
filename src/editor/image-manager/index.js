@@ -71,9 +71,6 @@ export default class ImageManager {
         img = await FabricImage.fromURL(dataUrl, { crossOrigin: 'anonymous' })
       }
 
-      img.set('id', `${img.type}-${nanoid()}`)
-      img.set('format', format)
-
       const { width: imageWidth, height: imageHeight } = img
 
       // Если изображение больше максимальных размеров, то даунскейлим его
@@ -85,6 +82,9 @@ export default class ImageManager {
         // Создаем новый объект FabricImage из уменьшенного dataURL
         img = await FabricImage.fromURL(resizedBlobURL, { crossOrigin: 'anonymous' })
       }
+
+      img.set('id', `${img.type}-${nanoid()}`)
+      img.set('format', format)
 
       // Растягиваем монтажную область под изображение или наоборот
       if (scale === 'scale-montage') {
