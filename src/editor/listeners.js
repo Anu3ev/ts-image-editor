@@ -130,8 +130,9 @@ class Listeners {
   /**
    * При массовом выделении объектов удаляем из него залоченные.
    */
-  _filterLockedSelection({ selected }) {
-    if (!selected?.length) return
+  _filterLockedSelection({ selected, e }) {
+    // Если это не событие мыши или если нет выделенных объектов, то ничего не делаем
+    if (!selected?.length || !(e instanceof MouseEvent)) return
 
     //  Если объект один, то просто делаем его активным, не важно залочен он или нет
     if (selected.length === 1) return
@@ -214,8 +215,9 @@ class Listeners {
     // Центрируем монтажную область
     this.editor.canvasManager.centerMontageArea()
 
-    // Сбрасываем все трансформации объектов
-    this.editor.transformManager.resetObjects()
+    // Вписываем объекты в монтажную область
+    this.editor.selectionManager.selectAll()
+    this.editor.transformManager.fitObject({ fitAsOneObject: true, withoutSave: true })
   }
 
   /**
