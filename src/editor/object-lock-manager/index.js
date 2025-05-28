@@ -15,11 +15,11 @@ export default class ObjectLockManager {
    * @returns
    * @fires editor:object-locked
    */
-  lockObject({ object, withoutSave } = {}) {
+  lockObject({ object, skipInnerObjects, withoutSave } = {}) {
     const { canvas, historyManager } = this.editor
 
     const activeObject = object || canvas.getActiveObject()
-    if (!activeObject) return
+    if (!activeObject || activeObject.locked) return
 
     const lockOptions = {
       lockMovementX: true,
@@ -34,7 +34,9 @@ export default class ObjectLockManager {
 
     activeObject.set(lockOptions)
 
-    if (['activeselection', 'group'].includes(activeObject.type)) {
+    const shouldLockInnerObjects = !skipInnerObjects && ['activeselection', 'group'].includes(activeObject.type)
+
+    if (shouldLockInnerObjects) {
       activeObject.getObjects().forEach((obj) => {
         obj.set(lockOptions)
       })

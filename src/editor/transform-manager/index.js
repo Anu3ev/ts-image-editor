@@ -5,8 +5,6 @@ import {
   DEFAULT_ROTATE_RATIO
 } from '../constants'
 
-import { calculateScaleFactor } from '../helpers'
-
 export default class TransformManager {
   /**
    * @param {object} options
@@ -64,15 +62,15 @@ export default class TransformManager {
     const { canvas, minZoom, maxZoom } = this.editor
 
     const currentZoom = canvas.getZoom()
-    const pointX = options.pointX ?? canvas.getWidth() / 2
-    const pointY = options.pointY ?? canvas.getHeight() / 2
+    const {
+      x: pointX = options.pointX,
+      y: pointY = options.pointY
+    } = canvas.getCenterPoint()
 
     let zoom = Number((currentZoom + Number(scale)).toFixed(2))
 
     if (zoom > maxZoom) zoom = maxZoom
     if (zoom < minZoom) zoom = minZoom
-
-    console.log('currentZoom', currentZoom)
 
     canvas.zoomToPoint({ x: Number(pointX), y: Number(pointY) }, zoom)
 
@@ -92,8 +90,7 @@ export default class TransformManager {
   setZoom(zoom = this.defaultZoom) {
     const { canvas, minZoom, maxZoom } = this.editor
 
-    const pointX = canvas.getWidth() / 2
-    const pointY = canvas.getHeight() / 2
+    const { x: pointX, y: pointY } = canvas.getCenterPoint()
 
     let newZoom = zoom
 
@@ -116,9 +113,7 @@ export default class TransformManager {
    */
   resetZoom() {
     const { canvas, defaultZoom } = this.editor
-
-    const pointX = canvas.getWidth() / 2
-    const pointY = canvas.getHeight() / 2
+    const { x: pointX, y: pointY } = canvas.getCenterPoint()
 
     canvas.zoomToPoint({ x: Number(pointX), y: Number(pointY) }, defaultZoom)
 
@@ -232,7 +227,7 @@ export default class TransformManager {
    * @fires editor:image-fitted
    */
   fitObject({ object, type = this.options.scaleType, withoutSave, fitAsOneObject } = {}) {
-    const { canvas, montageArea, historyManager } = this.editor
+    const { canvas, montageArea, imageManager, historyManager } = this.editor
 
     const activeObject = object || canvas.getActiveObject()
 
@@ -244,7 +239,7 @@ export default class TransformManager {
       canvas.discardActiveObject()
 
       selectedItems.forEach((obj) => {
-        const objScale = calculateScaleFactor({ montageArea, imageObject: obj, scaleType: type })
+        const objScale = imageManager.calculateScaleFactor({ montageArea, imageObject: obj, scaleType: type })
 
         obj.scale(objScale)
         canvas.centerObject(obj)
@@ -254,7 +249,7 @@ export default class TransformManager {
 
       canvas.setActiveObject(sel)
     } else {
-      const scaleFactor = calculateScaleFactor({
+      const scaleFactor = imageManager.calculateScaleFactor({
         montageArea,
         imageObject: activeObject,
         scaleType: type
@@ -293,6 +288,7 @@ export default class TransformManager {
     const {
       canvas,
       montageArea,
+      imageManager,
       historyManager,
       options: { scaleType }
     } = this.editor
@@ -322,7 +318,7 @@ export default class TransformManager {
       const { width: montageAreaWidth, height: montageAreaHeight } = montageArea
       const { width: imageWidth, height: imageHeight } = currentObject
 
-      const scaleFactor = calculateScaleFactor({
+      const scaleFactor = imageManager.calculateScaleFactor({
         montageArea,
         imageObject: currentObject,
         scaleType

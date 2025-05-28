@@ -1,4 +1,5 @@
 // API Docs: https://fabricjs.com/api/classes/canvas/
+
 export default {
   // Cохраняют ли объекты свой текущий порядок (z-index) при выделении
   preserveObjectStacking: true,
@@ -29,6 +30,9 @@ export default {
   // Container CSS width and height
   editorContainerWidth: 'fit-content',
   editorContainerHeight: '100%',
+
+  // Максимальная длина истории действий
+  maxHistoryLength: 50,
 
   // Дефолтный тип скейлинга для объектов (cotain/cover)
   scaleType: 'contain',
