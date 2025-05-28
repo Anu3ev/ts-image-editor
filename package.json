@@ -1,6 +1,6 @@
 {
-  "name": "@anu3ev/fabric-image-editor",
-  "version": "0.1.4",
+  "name": "@anu3ev/ts-fabric-image-editor",
+  "version": "0.1.0",
   "description": "JavaScript image editor built on FabricJS, allowing you to create instances with an integrated montage area and providing an API to modify and manage state.",
   "module": "dist/main.js",
   "files": [
@@ -40,7 +40,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Anu3ev/image-editor.git"
+    "url": "git+https://github.com/Anu3ev/ts-image-editor.git"
   },
   "license": "MIT"
 }
